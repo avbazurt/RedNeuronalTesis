@@ -45,7 +45,9 @@ public:
 
     // Funcion que permite cargar el modelo desde memoria SPIFF al arreglo model_tflite
     bool SaveModel();
-    bool LoadModel();
+
+    bool LoadSPIFFSModel();
+    bool LoadDefaultModel();
 
     // Agregamos entradas
     float *getInputBuffer();

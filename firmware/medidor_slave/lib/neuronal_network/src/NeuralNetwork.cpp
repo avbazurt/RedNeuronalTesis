@@ -9,22 +9,17 @@
 #include <Preferences.h>
 #include "SPIFFS.h"
 
-
 #define file_model "/model.txt"
 
 NeuralNetwork::NeuralNetwork()
 {
-    error_reporter = new tflite::MicroErrorReporter();
-
-    LoadModel();
-
-    model = tflite::GetModel(model_tflite);
-    if (model->version() != TFLITE_SCHEMA_VERSION)
+    if (!LoadSPIFFSModel())
+    //if (true)
     {
-        TF_LITE_REPORT_ERROR(error_reporter, "Model provided is schema version %d not equal to supported version %d.",
-                             model->version(), TFLITE_SCHEMA_VERSION);
-        return;
+        log_e("Se procede a intentar cargar un modelo default");
+        LoadDefaultModel();
     }
+
     // This pulls in the operators implementations we need
     resolver = new tflite::MicroMutableOpResolver<15>();
     resolver->AddFullyConnected();
@@ -68,15 +63,12 @@ NeuralNetwork::NeuralNetwork()
 
 bool NeuralNetwork::SaveModel()
 {
-
     if (!SPIFFS.begin(true))
     {
         Serial.println("An Error has occurred while mounting SPIFFS");
         return false;
     }
-
     SPIFFS.remove(file_model);
-
     File file = SPIFFS.open(file_model, FILE_WRITE);
     if (!file)
     {
@@ -84,7 +76,7 @@ bool NeuralNetwork::SaveModel()
         return false;
     }
 
-    //Guardamos el nuevo tamaño del modelo
+    // Guardamos el nuevo tamaño del modelo
     file.println(len_new_model_tflite);
 
     int valor;
@@ -100,26 +92,43 @@ bool NeuralNetwork::SaveModel()
     return true;
 }
 
-bool NeuralNetwork::LoadModel()
+bool NeuralNetwork::LoadDefaultModel()
 {
+    log_i("Tamaño Buffer a crear: %d", converted_model_tflite_len);
+    model_tflite = new char[converted_model_tflite_len];
+
+    for (int indice = 0; indice < converted_model_tflite_len; indice++)
+    {
+        model_tflite[indice] = converted_model_tflite[indice];
+    }
+
+    error_reporter = new tflite::MicroErrorReporter();
+    model = tflite::GetModel(model_tflite);
+    if (model->version() != TFLITE_SCHEMA_VERSION)
+    {
+        TF_LITE_REPORT_ERROR(error_reporter, "Model Default provided is schema version %d not equal to supported version %d.",
+                             model->version(), TFLITE_SCHEMA_VERSION);
+
+        return false;
+    }
+    log_i("Load Model Default OK");
+    return true;
+}
+
+bool NeuralNetwork::LoadSPIFFSModel()
+{
+    // Procedemos a iniciar el modulo SPIFFS
     if (!SPIFFS.begin(true))
     {
         log_e("An Error has occurred while mounting SPIFFS");
         return false;
     }
 
-    if (!SPIFFS.exists(file_model)){
-        log_e("No se registra un modelo TFlite en memoria SPIFFS, se procede a utilizar un modelo generico");
-
-        log_i("Tamaño Buffer a crear: %d", converted_model_tflite_len);
-        model_tflite = new char[converted_model_tflite_len];
-
-        for (int indice = 0; indice<converted_model_tflite_len; indice++){
-            model_tflite[indice] = converted_model_tflite[indice];
-        }
-        return true;
+    if (!SPIFFS.exists(file_model))
+    {
+        log_e("No se registra un modelo TFlite en memoria SPIFFS");
+        return false;
     }
-
 
     File file = SPIFFS.open(file_model);
     if (!file)
@@ -129,9 +138,7 @@ bool NeuralNetwork::LoadModel()
     }
 
     int m = 0;
-
     String linea;
-
     char fila[20];
     char digito;
 
@@ -172,7 +179,17 @@ bool NeuralNetwork::LoadModel()
         m++;
     }
     file.close();
-    log_i("Modelo Cargado");
+
+    error_reporter = new tflite::MicroErrorReporter();
+    model = tflite::GetModel(model_tflite);
+    if (model->version() != TFLITE_SCHEMA_VERSION)
+    {
+        TF_LITE_REPORT_ERROR(error_reporter, "Model SPIFFS provided is schema version %d not equal to supported version %d.",
+                             model->version(), TFLITE_SCHEMA_VERSION);
+
+        return false;
+    }
+    log_i("Load Model SPIFF OK");
     return true;
 }
 

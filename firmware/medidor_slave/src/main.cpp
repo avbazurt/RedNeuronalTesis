@@ -131,11 +131,9 @@ void setup()
   YuboxWiFi.releaseControlOfWiFi();
   YuboxWiFi.saveControlOfWiFi();
 
-
   now = new ESP32_now();
   now->setReciveCallback(ReciveDataNow);
   now->begin();
-
 
   // Actualización de RTC
   task_yuboxUpdateRTC.enable();
@@ -159,16 +157,16 @@ void loop()
 void espnowMuestrearFases(void)
 {
   DynamicJsonDocument json_data(JSON_OBJECT_SIZE(13));
-  json_data["cmd"]  = "muestra";
-  json_data["VA"]   = sensor->DatosFaseA.VLN;
-  json_data["VB"]   = sensor->DatosFaseB.VLN;
-  json_data["VC"]   = sensor->DatosFaseC.VLN;
-  json_data["IA"]   = sensor->DatosFaseA.I;
-  json_data["IB"]   = sensor->DatosFaseB.I;
-  json_data["IC"]   = sensor->DatosFaseC.I;
-  json_data["FPA"]  = sensor->DatosFaseA.FP;
-  json_data["FPB"]  = sensor->DatosFaseB.FP;
-  json_data["FPC"]  = sensor->DatosFaseC.FP;
+  json_data["cmd"] = "muestra";
+  json_data["VA"] = sensor->DatosFaseA.VLN;
+  json_data["VB"] = sensor->DatosFaseB.VLN;
+  json_data["VC"] = sensor->DatosFaseC.VLN;
+  json_data["IA"] = sensor->DatosFaseA.I;
+  json_data["IB"] = sensor->DatosFaseB.I;
+  json_data["IC"] = sensor->DatosFaseC.I;
+  json_data["FPA"] = sensor->DatosFaseA.FP;
+  json_data["FPB"] = sensor->DatosFaseB.FP;
+  json_data["FPC"] = sensor->DatosFaseC.FP;
 
   String json_output;
   serializeJson(json_data, json_output);
@@ -280,6 +278,35 @@ void TaskPredition()
   releI2C->output(output_rele);
 }
 
+TaskHandle_t time_out;
+int i_actual;
+
+void TimeOutModel(void *pvParameters)
+{
+  (void)pvParameters;
+  int indice_anterior = -1;
+  for (;;)
+  {
+    if (i_actual == indice_anterior)
+    {
+      // Se acabo el tiempo de espera
+      log_i("Time Out flasheo modelo, se procede a reactivar las medicion y predicion");
+      task_predition.enable();
+      task_yuboxMuestrearFases.enable();
+
+      NextionUI_flah_model(0, 0, false,true);
+      vTaskDelay(500 / portTICK_PERIOD_MS);
+      vTaskDelete(time_out);
+    }
+    else
+    {
+      Serial.println("Todo OK");
+      indice_anterior = i_actual;
+    }
+    vTaskDelay(5000 / portTICK_PERIOD_MS);
+  }
+}
+
 void ReciveDataNow(char MAC[], char text[])
 {
   Serial.printf("Received message from: %s - %s\n", MAC, text);
@@ -310,22 +337,37 @@ void ReciveDataNow(char MAC[], char text[])
     task_yuboxMuestrearFases.disable();
     NextionUI_flah_model(total_indice, true);
     nn->indice_new_model = 0;
+
+    xTaskCreatePinnedToCore(
+        TimeOutModel,
+        "TaskTimeOut",
+        2024,
+        NULL,
+        2,
+        &time_out,
+        0);
   }
 
   else if (String(opcion) == "model")
   {
     const char *valor = doc["valor"];
-    int indice = doc["indice"];
+
+    i_actual = doc["indice"];
 
     int valor_entero = (long)strtol(valor, 0, 16);
-    nn->new_model_tflite[indice] = valor_entero;
-    Serial.println(nn->new_model_tflite[indice], HEX);
-    NextionUI_NextIndice(indice);
+    nn->new_model_tflite[i_actual] = valor_entero;
+    Serial.println(nn->new_model_tflite[i_actual], HEX);
+    NextionUI_NextIndice(i_actual);
     nn->indice_new_model++;
   }
 
   else
   {
+    vTaskDelete(time_out);
+
+    NextionUI_flah_model(0, 0, true);
+    vTaskDelay(2000 / portTICK_PERIOD_MS);
+
     Serial.println("--------------------");
     Serial.println("Resumen de Flasheo: ");
     Serial.printf("Datos guardados: %d\n", nn->indice_new_model);

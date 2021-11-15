@@ -193,10 +193,12 @@ void buttonNavigate(void *ptr)
         if (text == "MAX")
         {
             _MaxValue = !_MaxValue;
-            if (_MaxValue){
+            if (_MaxValue)
+            {
                 maximo.Set_background_color_bco(255);
             }
-            else{
+            else
+            {
                 maximo.Set_background_color_bco(266);
             }
         }
@@ -369,8 +371,32 @@ void NextionUI_runEvents(PZEM_Trifasico Sensor)
     nexLoop(nex_listen_list);
 }
 
-void NextionUI_flah_model(int indice, bool initialize)
+void NextionUI_flah_model(int indice, bool initialize, bool finish_god, bool finish_bad)
 {
+    if (finish_god)
+    {
+        // load.Set_background_color_bco(250);
+        porcentaje.setValue(100);
+        load.setValue(100);
+
+        load.Set_font_color_pco(5600);
+        nexLoop(nex_listen_list);
+        return;
+    }
+
+    if (finish_bad)
+    {
+        load.Set_font_color_pco(9000);
+        porcentaje.setValue(0);
+
+        vTaskDelay(2000 / portTICK_RATE_MS);
+
+        _FlashModel = false;
+        page_main.show();
+        NextionUI_UpdateParametros(HMI_page);
+        return;
+    }
+
     if (initialize)
     {
         indices_totales = indice;
