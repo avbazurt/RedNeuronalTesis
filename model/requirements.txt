@@ -1,0 +1,7 @@
+tensorflow~=2.1.0
+pandas~=1.3.5
+numpy~=1.21.5
+matplotlib~=3.5.1
+hexdump~=3.3
+Keras~=2.1.0
+scikit-learn~=1.0.2
