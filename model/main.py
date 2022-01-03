@@ -1,44 +1,111 @@
-from __future__ import absolute_import, division, print_function, unicode_literals
-import pandas
-import numpy as np
-import tensorflow as tf
-from tensorflow.keras import layers
-from tensorflow.keras.utils import to_categorical
-from keras.utils import np_utils
-from sklearn.model_selection import train_test_split
-from keras import backend as K
-from sklearn.datasets import make_circles
-import matplotlib.pyplot as plt
+from scripts.PySerial import *
+from time import sleep
+import threading
+from scripts.RedNeuronal import RedNeuronal
 
-from scripts.RedNeuronal import port
+def HiloReadData(RasberrySerial,bandera):
+    while (bandera):
+        texto = RasberrySerial.ReadPort()
+        if ("Received message from:" in texto):
+            texto = texto.replace("Received message from:","")
+            print(texto)
 
-print("TensorFlow version: {}".format(tf.__version__))
-
-X , Y  = make_circles(n_samples=500, factor=0.5, noise=0.05)
-X = 5*X
-X_train,X_test,y_train,y_test=train_test_split(X,Y,train_size=0.8,random_state=23)
-
-
-X_train_1 = K.cast_to_floatx (X_train)
-X_test_1 = K.cast_to_floatx (X_test)
-y_train_1 = K.cast_to_floatx (y_train)
-
-model= tf.keras.Sequential()
-model.add(layers.Dense(16, activation='relu', input_dim=2))
-model.add(layers.Dense(8, activation='relu'))
-model.add(layers.Dense(1, activation='sigmoid'))
-
-# Configulación del entrenamiento
-model.compile(loss='mse', optimizer='adam', metrics=['accuracy'])
-model.summary()
+def HiloWriteData(RasberrySerial,bandera):
+    while (bandera):
+        dic_data = {
+            "cmd":"now",
+            "MAC":"3C:61:05:13:81:34",
+            "msg":"{'hola':'hola'}"
+        }
+        print(str(dic_data))
+        RasberrySerial.WritePort(str(dic_data)+"\n")
+        sleep(5)
 
 
 
+RasberrySerial  = RasberrySerial("/dev/ttyUSB1")
+
+parametros = lambda mensaje : str({
+    "cmd": "now",
+    "MAC": "3C:61:05:13:81:34",
+    "msg": str(mensaje)
+})
 
 
-historial = model.fit(X_train_1,y_train_1, epochs=100,batch_size=1,verbose=True)
+
+RedNeuronal = RedNeuronal()
+RedNeuronal.UpdateDatos()
+RedNeuronal.ConfigurarModelo()
+RedNeuronal.EntrenamientoModelo(2)
+#
+new_model = RedNeuronal.GenerateLiteModel()
+
+#Primer comando para iniciar el flasheo
+mensaje = {
+    "cmd":"new_model",
+    "len":len(new_model)
+    }
+RasberrySerial.WritePort(parametros(mensaje))
+sleep(2)
+
+print("Send Data")
+mensaje = lambda indice,valor: \
+    {
+    "cmd":"model",
+    "indice":indice,
+    "valor":valor.strip()
+    }
+
+for indice in range(len(new_model)):
+    RasberrySerial.WritePort(parametros(mensaje(indice,new_model[indice])))
+    sleep(0.03)
+
+
+#Comando para flashear nuevo dato
+mensaje = {
+    "cmd":"end_model",
+    }
+RasberrySerial.WritePort(parametros(mensaje))
 
 
 
-text = port(model,variable_name="mi_data")
-print(text)
+#hiloRead = threading.Thread(target=HiloReadData,args=(RasberrySerial,bandera,))
+#hiloRead.start()
+
+#hiloWrite = threading.Thread(target=HiloWriteData,args=(RasberrySerial,bandera,))
+#hiloWrite.start()
+
+
+
+#
+# if __name__ == '__main__':
+#     print('Running. Press CTRL-C to exit.')
+#     with serial.Serial("/dev/ttyUSB1", 115200, timeout=1) as arduino:
+#         time.sleep(0.1)  # wait for serial to open
+#         if arduino.isOpen():
+#             print("{} connected!".format(arduino.port))
+#             try:
+#                 while True:
+#                     while arduino.inWaiting() == 0: pass
+#                     if arduino.inWaiting() > 0:
+#                         answer = arduino.readline()
+#                         answer = str(answer,'utf-8')
+#                         answer = answer.strip("\n")
+#
+#                         if ("Received message from:" in answer):
+#                             answer = answer.replace("Received message from:","")
+#                             print(answer)
+#
+#                             datos = answer.split("|")
+#
+#                             MAC = datos[0].strip()
+#                             texto = datos[1].strip()
+#
+#                             print(MAC)
+#
+#
+#
+#
+#                         arduino.flushInput()  # remove data after reading
+#             except KeyboardInterrupt:
+#                 print("KeyboardInterrupt has been caught.")
