@@ -33,10 +33,12 @@ class RedNeuronal:
 
         input_train, input_test, ouput_train,ouput_test = train_test_split(X,Y,train_size=0.8,random_state=23)
 
-        self.input_train = input_train
-        self.input_test = input_test
-        self.ouput_train = ouput_train
-        self.ouput_test = ouput_test
+        self.input_train = np.array(input_train).tolist()
+        self.input_test = np.array(input_test).tolist()
+        self.ouput_train = np.array(ouput_train).tolist()
+        self.ouput_test = np.array(ouput_test).tolist()
+
+
 
 
     def ConfigurarModelo(self):

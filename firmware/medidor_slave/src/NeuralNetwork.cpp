@@ -7,6 +7,8 @@
 #include <Preferences.h>
 #include "SPIFFS.h"
 
+#define file_model "/model.txt"
+
 NeuralNetwork::NeuralNetwork()
 {
     error_reporter = new tflite::MicroErrorReporter();
@@ -58,6 +60,44 @@ NeuralNetwork::NeuralNetwork()
 }
 
 
+bool NeuralNetwork::SaveModel()
+{
+    
+    Preferences flash;
+    flash.begin("model", false);
+    flash.putInt("len_model", len_new_model_tflite);
+    flash.end();
+    
+    
+    if (!SPIFFS.begin(true))
+    {
+        Serial.println("An Error has occurred while mounting SPIFFS");
+        return false;
+    }
+
+    
+    SPIFFS.remove(file_model);
+    
+    File file = SPIFFS.open(file_model,FILE_WRITE);
+    if (!file)
+    {
+        Serial.println("Failed to open file for reading");
+        return false;
+    }
+
+    int valor;
+    
+    for (int indice = 0; indice<len_new_model_tflite;indice++){
+        char msg[10];
+        valor = new_model_tflite[indice];
+        sprintf(msg,"0x%02X\n",valor);
+        file.print(String(msg));
+    }
+    
+    file.close();
+    return true;
+}
+
 bool NeuralNetwork::LoadModel()
 {
     Preferences flash;
@@ -73,7 +113,7 @@ bool NeuralNetwork::LoadModel()
         return false;
     }
 
-    File file = SPIFFS.open("/model.txt");
+    File file = SPIFFS.open(file_model);
     if (!file)
     {
         Serial.println("Failed to open file for reading");

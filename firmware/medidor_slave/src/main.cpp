@@ -1,15 +1,12 @@
 #include <Arduino.h>
 #include "NeuralNetwork.h"
-#include "now.h"
+#include "HAL_now.h"
 #include <ArduinoJson.h>
-#include <YuboxSimple.h>
-
-#define ARDUINOJSON_USE_LONG_LONG 1
 
 ESP32_now *now;
 NeuralNetwork *nn;
 
-void Alarma(char MAC[], char text[])
+void ReciveDataNow(char MAC[], char text[])
 {
   Serial.printf("Received message from: %s - %s\n", MAC, text);
 
@@ -25,10 +22,27 @@ void Alarma(char MAC[], char text[])
   }
 
   const char *opcion = doc["cmd"];
-
-  if (String(opcion) == "model")
+  if (String(opcion) == "new_model")
   {
-    Serial.println("Hola");
+    nn->len_new_model_tflite = doc["len"];
+    Serial.println("Creando el Array");
+    nn->new_model_tflite = new char[nn->len_new_model_tflite];
+  }
+
+  else if (String(opcion) == "model")
+  {
+    const char *valor = doc["valor"];
+    int indice = doc["indice"];
+
+    int valor_entero = (long)strtol(valor, 0, 16);
+    nn->new_model_tflite[indice] = valor_entero;
+    Serial.println(nn->new_model_tflite[indice],HEX);
+  }
+
+  else{
+    Serial.println("Flasheando modelo");
+    nn->SaveModel();
+    ESP.restart();
   }
 }
 
@@ -38,16 +52,12 @@ void setup()
   nn = new NeuralNetwork();
   now = new ESP32_now();
 
-  yuboxSimpleSetup();
-
-  now->setReciveCallback(Alarma);
+  now->setReciveCallback(ReciveDataNow);
   now->begin();
 }
 
 void loop()
 {
-
-  /*
   float number1 = 5.01 * (random(100) / 100.0);
   float number2 = 5.01 * (random(100) / 100.0);
 
@@ -56,12 +66,7 @@ void loop()
 
   float result = nn->predict();
 
-  const char *expected = number2 > number1 ? "True" : "False";
+  Serial.printf("%.2f %.2f - result %.2f \n", number1, number2, result);
+  delay(2000);
 
-  const char *predicted = result > 0.5 ? "True" : "False";
-
-  Serial.printf("%.2f %.2f - result %.2f - Expected %s, Predicted %s\n", number1, number2, result, expected, predicted);
-
-  delay(1000);
-  */
 }

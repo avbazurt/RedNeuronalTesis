@@ -29,6 +29,7 @@ public:
     //Inicializador
     NeuralNetwork();
     char *new_model_tflite;
+    long int len_new_model_tflite;
 
     //Arreglo donde se almacena el modelo exportado de TensorFLow
     char *model_tflite;
@@ -37,6 +38,7 @@ public:
     const int kArenaSize = 50000;
 
     // Funcion que permite cargar el modelo desde memoria SPIFF al arreglo model_tflite
+    bool SaveModel();
     bool LoadModel();
 
     // Agregamos entradas

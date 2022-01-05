@@ -23,89 +23,53 @@ def HiloWriteData(RasberrySerial,bandera):
 
 
 
-RasberrySerial  = RasberrySerial("/dev/ttyUSB1")
-
-parametros = lambda mensaje : str({
-    "cmd": "now",
-    "MAC": "3C:61:05:13:81:34",
-    "msg": str(mensaje)
-})
 
 
 
-RedNeuronal = RedNeuronal()
-RedNeuronal.UpdateDatos()
-RedNeuronal.ConfigurarModelo()
-RedNeuronal.EntrenamientoModelo(2)
-#
-new_model = RedNeuronal.GenerateLiteModel()
 
-#Primer comando para iniciar el flasheo
-mensaje = {
-    "cmd":"new_model",
-    "len":len(new_model)
-    }
-RasberrySerial.WritePort(parametros(mensaje))
-sleep(2)
+if __name__ == '__main__':
+    RasberrySerial = RasberrySerial("/dev/ttyAMA0")
 
-print("Send Data")
-mensaje = lambda indice,valor: \
-    {
-    "cmd":"model",
-    "indice":indice,
-    "valor":valor.strip()
-    }
+    parametros = lambda mensaje: str({
+        "cmd": "now",
+        "MAC": "3C:61:05:13:81:34",
+        "msg": str(mensaje)
+    })
 
-for indice in range(len(new_model)):
-    RasberrySerial.WritePort(parametros(mensaje(indice,new_model[indice])))
-    sleep(0.03)
+    RedNeuronal = RedNeuronal()
+    RedNeuronal.UpdateDatos()
+    RedNeuronal.ConfigurarModelo()
+    RedNeuronal.EntrenamientoModelo(2)
+    #
+    new_model = RedNeuronal.GenerateLiteModel()
+
+    while (True):
+        input("Presione Enter para iniciar")
+
+        # Primer comando para iniciar el flasheo
+        mensaje = {
+            "cmd": "new_model",
+            "len": len(new_model)
+        }
+        RasberrySerial.WritePort(parametros(mensaje))
+        sleep(2)
+
+        print("Send Data")
+        mensaje = lambda indice, valor: \
+            {
+                "cmd": "model",
+                "indice": indice,
+                "valor": valor.strip()
+            }
+
+        for indice in range(len(new_model)):
+            RasberrySerial.WritePort(parametros(mensaje(indice, new_model[indice])))
+            sleep(0.03)
+
+        # Comando para flashear nuevo dato
+        mensaje = {
+            "cmd": "end_model",
+        }
+        RasberrySerial.WritePort(parametros(mensaje))
 
 
-#Comando para flashear nuevo dato
-mensaje = {
-    "cmd":"end_model",
-    }
-RasberrySerial.WritePort(parametros(mensaje))
-
-
-
-#hiloRead = threading.Thread(target=HiloReadData,args=(RasberrySerial,bandera,))
-#hiloRead.start()
-
-#hiloWrite = threading.Thread(target=HiloWriteData,args=(RasberrySerial,bandera,))
-#hiloWrite.start()
-
-
-
-#
-# if __name__ == '__main__':
-#     print('Running. Press CTRL-C to exit.')
-#     with serial.Serial("/dev/ttyUSB1", 115200, timeout=1) as arduino:
-#         time.sleep(0.1)  # wait for serial to open
-#         if arduino.isOpen():
-#             print("{} connected!".format(arduino.port))
-#             try:
-#                 while True:
-#                     while arduino.inWaiting() == 0: pass
-#                     if arduino.inWaiting() > 0:
-#                         answer = arduino.readline()
-#                         answer = str(answer,'utf-8')
-#                         answer = answer.strip("\n")
-#
-#                         if ("Received message from:" in answer):
-#                             answer = answer.replace("Received message from:","")
-#                             print(answer)
-#
-#                             datos = answer.split("|")
-#
-#                             MAC = datos[0].strip()
-#                             texto = datos[1].strip()
-#
-#                             print(MAC)
-#
-#
-#
-#
-#                         arduino.flushInput()  # remove data after reading
-#             except KeyboardInterrupt:
-#                 print("KeyboardInterrupt has been caught.")
