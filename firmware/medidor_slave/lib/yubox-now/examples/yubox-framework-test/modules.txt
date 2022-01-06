@@ -1,1 +1,0 @@
-+lector wifi ntpconfig mqtt webauth yuboxOTA

@@ -1,10 +1,12 @@
 #include <Arduino.h>
 #include "NeuralNetwork.h"
 #include "HAL_now.h"
+#include "HAL_sensor.h"
 #include <ArduinoJson.h>
 
 ESP32_now *now;
 NeuralNetwork *nn;
+MedidorTrifasico *sensor;
 
 void ReciveDataNow(char MAC[], char text[])
 {
@@ -36,10 +38,11 @@ void ReciveDataNow(char MAC[], char text[])
 
     int valor_entero = (long)strtol(valor, 0, 16);
     nn->new_model_tflite[indice] = valor_entero;
-    Serial.println(nn->new_model_tflite[indice],HEX);
+    Serial.println(nn->new_model_tflite[indice], HEX);
   }
 
-  else{
+  else
+  {
     Serial.println("Flasheando modelo");
     nn->SaveModel();
     ESP.restart();
@@ -49,6 +52,7 @@ void ReciveDataNow(char MAC[], char text[])
 void setup()
 {
   Serial.begin(115200);
+  sensor = new MedidorTrifasico();
   nn = new NeuralNetwork();
   now = new ESP32_now();
 
@@ -58,6 +62,9 @@ void setup()
 
 void loop()
 {
+  sensor->GetMedicionTrifasica();
+
+
   float number1 = 5.01 * (random(100) / 100.0);
   float number2 = 5.01 * (random(100) / 100.0);
 
@@ -68,5 +75,4 @@ void loop()
 
   Serial.printf("%.2f %.2f - result %.2f \n", number1, number2, result);
   delay(2000);
-
 }

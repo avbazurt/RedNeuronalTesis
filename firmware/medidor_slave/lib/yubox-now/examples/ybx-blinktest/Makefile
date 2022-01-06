@@ -1,1 +1,0 @@
-include $(YF)/Makefile.inc
