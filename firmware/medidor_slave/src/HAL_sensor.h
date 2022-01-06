@@ -1,11 +1,7 @@
 #pragma once
 
 #include <PZEM004Tv30.h>
-
-#define PZEM_RX_PIN GPIO_NUM_16
-#define PZEM_TX_PIN GPIO_NUM_17
-#define PZEM_SERIAL Serial2
-
+#include "HAL_config.h"
 
 
 class MedidorTrifasico

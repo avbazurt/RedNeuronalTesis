@@ -59,54 +59,42 @@ NeuralNetwork::NeuralNetwork()
     output = interpreter->output(0);
 }
 
-
 bool NeuralNetwork::SaveModel()
 {
-    
-    Preferences flash;
-    flash.begin("model", false);
-    flash.putInt("len_model", len_new_model_tflite);
-    flash.end();
-    
-    
+
     if (!SPIFFS.begin(true))
     {
         Serial.println("An Error has occurred while mounting SPIFFS");
         return false;
     }
 
-    
     SPIFFS.remove(file_model);
-    
-    File file = SPIFFS.open(file_model,FILE_WRITE);
+
+    File file = SPIFFS.open(file_model, FILE_WRITE);
     if (!file)
     {
         Serial.println("Failed to open file for reading");
         return false;
     }
 
+    //Guardamos el nuevo tamaño del modelo
+    file.println(len_new_model_tflite);
+
     int valor;
-    
-    for (int indice = 0; indice<len_new_model_tflite;indice++){
+    for (int indice = 0; indice < len_new_model_tflite; indice++)
+    {
         char msg[10];
         valor = new_model_tflite[indice];
-        sprintf(msg,"0x%02X\n",valor);
+        sprintf(msg, "0x%02X\n", valor);
         file.print(String(msg));
     }
-    
+
     file.close();
     return true;
 }
 
 bool NeuralNetwork::LoadModel()
 {
-    Preferences flash;
-    flash.begin("model", false);
-    int len_model = flash.getUInt("len_model", 2776);
-    flash.end();
-
-    model_tflite = new char[len_model];
-
     if (!SPIFFS.begin(true))
     {
         Serial.println("An Error has occurred while mounting SPIFFS");
@@ -128,6 +116,7 @@ bool NeuralNetwork::LoadModel()
     char digito;
 
     int i;
+
     while (file.available())
     {
         i = 0;
@@ -140,22 +129,33 @@ bool NeuralNetwork::LoadModel()
             digito = file.read();
         }
 
-        linea = String(fila);
-        linea = linea.substring(2, 4);
+        if (m == 0)
+        {
+            linea = String(fila);
+            int len_model = linea.toInt();
 
-        char msg[10];
-        linea.toCharArray(msg, 10);
+            Serial.printf("Tamaño Buffer a crear: %d\n", len_model);
+            model_tflite = new char[len_model];
+        }
+        else
+        {
+            linea = String(fila);
+            linea = linea.substring(2, 4);
 
-        int myInt = (long)strtol(msg, 0, 16);
-        
-        model_tflite[m] = myInt;
+            char msg[10];
+            linea.toCharArray(msg, 10);
+
+            int myInt = (long)strtol(msg, 0, 16);
+
+            model_tflite[m - 1] = myInt;
+        }
+
         m++;
     }
 
     file.close();
 
     return true;
-
 }
 
 float *NeuralNetwork::getInputBuffer()
