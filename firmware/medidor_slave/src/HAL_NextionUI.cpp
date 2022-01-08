@@ -183,7 +183,7 @@ void UpPagePopCallback(void *ptr)
     ChangePage(page);
 }
 
-void UpdatePage(int page, MedidorTrifasico Sensor)
+void UpdatePage(int page, PZEM_Trifasico Sensor)
 {
     char buffer[20];
     uint32_t numberA;
@@ -319,7 +319,7 @@ void NextionUI_initialize()
     page_TrianglePower.show();
 }
 
-void NextionUI_runEvents(MedidorTrifasico Sensor)
+void NextionUI_runEvents(PZEM_Trifasico Sensor)
 //Esta funcion se encarga de habilitar los eventos de la pantalla
 {
     if (_globalPause)

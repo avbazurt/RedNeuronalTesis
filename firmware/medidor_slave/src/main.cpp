@@ -1,15 +1,14 @@
 #include <Arduino.h>
 #include "NeuralNetwork.h"
 #include "HAL_now.h"
-#include "HAL_sensor.h"
+#include "PZEM_Trifasico.h"
 #include <ArduinoJson.h>
 #include "HAL_NextionUI.h"
-
+#include "HAL_config.h"
 
 ESP32_now *now;
 NeuralNetwork *nn;
-MedidorTrifasico *sensor;
-
+PZEM_Trifasico *sensor;
 
 void ReciveDataNow(char MAC[], char text[])
 {
@@ -29,7 +28,7 @@ void ReciveDataNow(char MAC[], char text[])
   const char *opcion = doc["cmd"];
   if (String(opcion) == "new_model")
   {
-    NextionUI_flah_model(doc["len"],true);
+    NextionUI_flah_model(doc["len"], true);
     delay(100);
     nn->len_new_model_tflite = doc["len"];
     Serial.println("Creando el Array");
@@ -60,16 +59,17 @@ void setup()
   NextionUI_initialize();
   Serial.begin(115200);
 
-  
-  sensor = new MedidorTrifasico();
+  sensor = new PZEM_Trifasico(PZEM_SERIAL, PZEM_RX_PIN, PZEM_TX_PIN,
+                              PZEM_ADDRESS_FASE_A,
+                              PZEM_ADDRESS_FASE_B,
+                              PZEM_ADDRESS_FASE_C);
+
   nn = new NeuralNetwork();
   now = new ESP32_now();
 
   now->setReciveCallback(ReciveDataNow);
   now->begin();
-  
 }
-
 
 void loop()
 {
@@ -84,7 +84,7 @@ void loop()
   float result = nn->predict();
 
   Serial.printf("%.2f %.2f - result %.2f \n", number1, number2, result);
-  delay(2000);
+  delay(500);
   */
- NextionUI_runEvents(*sensor);
+  NextionUI_runEvents(*sensor);
 }
