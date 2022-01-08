@@ -1,6 +1,6 @@
 #include "HAL_sensor.h"
 
-MedidorTrifasico::MedidorTrifasico() : faseA(PZEM_SERIAL, NEXTION_RX_PIN, PZEM_TX_PIN, 0x05),
+MedidorTrifasico::MedidorTrifasico() : faseA(PZEM_SERIAL, PZEM_RX_PIN, PZEM_TX_PIN, 0x05),
                                        faseB(PZEM_SERIAL, PZEM_RX_PIN, PZEM_TX_PIN, 0x20),
                                        faseC(PZEM_SERIAL, PZEM_RX_PIN, PZEM_TX_PIN, 0x05)
 {
