@@ -31,6 +31,9 @@ public:
     char *new_model_tflite;
     long int len_new_model_tflite;
 
+    long int indice_new_model;
+
+
     //Arreglo donde se almacena el modelo exportado de TensorFLow
     char *model_tflite;
 

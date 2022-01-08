@@ -57,13 +57,13 @@ void ESP32_now::setReciveCallback(void (*puntero)(char MAC[], char text[]))
 
 ESP32_now::ESP32_now()
 {
-    WiFi.mode(WIFI_STA);
+    WiFi.mode(WIFI_AP_STA);
     Serial.println("ESPNow Example");
     // Output my MAC address - useful for later
     Serial.print("My MAC Address is: ");
     Serial.println(WiFi.macAddress());
     // shut down wifi
-    WiFi.disconnect();
+    //WiFi.disconnect();
 
     if (esp_now_init() == ESP_OK)
     {

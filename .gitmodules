@@ -1,3 +1,6 @@
 [submodule "firmware/medidor_slave/lib/Trifasico-PZEM-004T-v30"]
 	path = firmware/medidor_slave/lib/Trifasico-PZEM-004T-v30
 	url = https://github.com/avbazurt/Trifasico-PZEM-004T-v30
+[submodule "firmware/medidor_slave/lib/yubox-now"]
+	path = firmware/medidor_slave/lib/yubox-now
+	url = https://github.com/yubox-node-org/yubox-now
