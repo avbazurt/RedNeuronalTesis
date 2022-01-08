@@ -304,8 +304,8 @@ void NextionUI_initialize()
     back_FP.attachPop(DownPagePopCallback, &back_FP);
     continue_FP.attachPop(UpPagePopCallback, &continue_FP);
 
-    //back_Vector.attachPop(DownPagePopCallback, &back_I);
-    //continue_Vector.attachPop(UpPagePopCallback, &continue_I);
+    // back_Vector.attachPop(DownPagePopCallback, &back_I);
+    // continue_Vector.attachPop(UpPagePopCallback, &continue_I);
 
     // CONFIGURAMOS LOS BOTONES DE LAS POTENCIAS
     opcion_3P.attachPop(P3_PopCallback, &opcion_3P);
@@ -320,7 +320,7 @@ void NextionUI_initialize()
 }
 
 void NextionUI_runEvents(PZEM_Trifasico Sensor)
-//Esta funcion se encarga de habilitar los eventos de la pantalla
+// Esta funcion se encarga de habilitar los eventos de la pantalla
 {
     if (_globalPause)
         return;
@@ -344,10 +344,10 @@ void NextionUI_flah_model(int indice, bool initialize)
 {
     if (initialize)
     {
+        indices_totales = indice;
         Serial.println("Flash Comienza");
         _FlashModel = true;
         page_load.show();
-        indices_totales = indice;
     }
     else
     {
