@@ -1,0 +1,3 @@
+[submodule "firmware/medidor_slave/lib/Trifasico-PZEM-004T-v30"]
+	path = firmware/medidor_slave/lib/Trifasico-PZEM-004T-v30
+	url = https://github.com/avbazurt/Trifasico-PZEM-004T-v30
