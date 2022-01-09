@@ -4,3 +4,6 @@
 [submodule "firmware/medidor_slave/lib/yubox-now"]
 	path = firmware/medidor_slave/lib/yubox-now
 	url = https://github.com/yubox-node-org/yubox-now
+[submodule "firmware/medidor_slave/lib/yubox-now-flasher-nextion"]
+	path = firmware/medidor_slave/lib/yubox-now-flasher-nextion
+	url = https://github.com/yubox-node-org/yubox-now-flasher-nextion

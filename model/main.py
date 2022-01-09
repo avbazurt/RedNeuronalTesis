@@ -23,10 +23,6 @@ def HiloWriteData(RasberrySerial,bandera):
 
 
 
-
-
-
-
 if __name__ == '__main__':
     RasberrySerial = RasberrySerial("/dev/ttyAMA0")
 

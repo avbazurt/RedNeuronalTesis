@@ -1,4 +1,12 @@
+#include "SPI.h"
+#include "SD.h"
+
 #include "HAL_NextionUI.h"
+#include "Nextion.h"
+
+#include <YuboxOTAClass.h>
+#include "YuboxOTA_Flasher_Nextion.h"
+
 #include "HAL_config.h"
 
 // Pausa global de interacción, para flasheo de Nextion
@@ -286,7 +294,19 @@ void UpdatePage(int page, PZEM_Trifasico Sensor)
     }
 }
 
-void NextionUI_initialize()
+static void NextionUI_globalPause(bool p)
+{
+    _globalPause = p;
+}
+
+static YuboxOTA_Flasher *_createNextionFlasher(void)
+{
+    YuboxOTA_Flasher_Nextion *f = new YuboxOTA_Flasher_Nextion();
+    f->attachNextion(std::bind(&NextionUI_globalPause, std::placeholders::_1), &nexSerial);
+    return f;
+}
+
+void NextionUI_initialize(AsyncWebServer &srv)
 {
     nexSerial.begin(115200, SERIAL_8N1, NEXTION_SERIAL_RX, NEXTION_SERIAL_TX);
     delay(1000);
@@ -316,6 +336,9 @@ void NextionUI_initialize()
     home_Q3.attachPop(Home_PopCallback, &home_Q3);
     home_S3.attachPop(Home_PopCallback, &home_S3);
 
+    YuboxOTA.addFirmwareFlasher(srv, "nextion", "Nextion TFT Firmware",
+                                std::bind(&_createNextionFlasher));
+
     page_TrianglePower.show();
 }
 
@@ -335,10 +358,6 @@ void NextionUI_runEvents(PZEM_Trifasico Sensor)
     nexLoop(nex_listen_list);
 }
 
-static void NextionUI_globalPause(bool p)
-{
-    _globalPause = p;
-}
 
 void NextionUI_flah_model(int indice, bool initialize)
 {
@@ -361,3 +380,4 @@ void NextionUI_NextIndice(int indice)
 {
     indice_actual = indice;
 }
+

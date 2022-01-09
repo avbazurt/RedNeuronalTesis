@@ -3,6 +3,9 @@
 
 #include <stdint.h>
 
+#define len_input 3
+#define len_output 1
+
 namespace tflite
 {
     template <unsigned int tOpCount>
@@ -17,7 +20,7 @@ struct TfLiteTensor;
 class NeuralNetwork
 {
 private:
-    tflite::MicroMutableOpResolver<10> *resolver;
+    tflite::MicroMutableOpResolver<15> *resolver;
     tflite::ErrorReporter *error_reporter;
     const tflite::Model *model;
     tflite::MicroInterpreter *interpreter;
@@ -38,7 +41,7 @@ public:
     char *model_tflite;
 
     //Tamaño del buffer a utilizar
-    const int kArenaSize = 50000;
+    const int kArenaSize = 9500;
 
     // Funcion que permite cargar el modelo desde memoria SPIFF al arreglo model_tflite
     bool SaveModel();
@@ -48,7 +51,8 @@ public:
     float *getInputBuffer();
     
     // Predecimos la salida
-    float predict();
+    float *getOutputBuffer();
+
 };
 
 #endif

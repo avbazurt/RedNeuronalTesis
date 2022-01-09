@@ -1,12 +1,14 @@
 #include <Arduino.h>
 #include "NeuralNetwork.h"
-#include "HAL_now.h"
 #include "PZEM_Trifasico.h"
+#include <YuboxSimple.h>
+
+#include <TaskScheduler.h>
+#include <RTClib.h>
+
+#include "HAL_now.h"
 #include "HAL_NextionUI.h"
 #include "HAL_config.h"
-#include <TaskScheduler.h>
-#include <WiFi.h>
-#include <YuboxSimple.h>
 
 // Definicion YUBOX FRAMEWORK
 #define ARDUINOJSON_USE_LONG_LONG 1
@@ -25,13 +27,20 @@ ESP32_now *now;
 NeuralNetwork *nn;
 PZEM_Trifasico *sensor;
 
+// Objeto que controla el RTC DS3231
+RTC_DS3231 rtc;
+void iniciarHoraDesdeRTC(void);
+
+
 // Callback
 void ReciveDataNow(char MAC[], char text[]);
 
 void setup()
 {
-  NextionUI_initialize();
+  NextionUI_initialize(yubox_HTTPServer);
   Serial.begin(115200);
+  iniciarHoraDesdeRTC();
+
   sensor = new PZEM_Trifasico(PZEM_SERIAL, PZEM_RX_PIN, PZEM_TX_PIN,
                               PZEM_ADDRESS_FASE_A,
                               PZEM_ADDRESS_FASE_B,
@@ -54,7 +63,6 @@ void setup()
 
 void loop()
 {
-
   yuboxSimpleLoopTask();
   NextionUI_runEvents(*sensor);
   mainScheduler.execute();
@@ -62,7 +70,6 @@ void loop()
 
 void yuboxMuestrearFases(void)
 {
-
   DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(3));
   json_doc["ts"] = 1000ULL * YuboxNTPConf.getUTCTime();
   json_doc["temperature"] = random(1, 100);
@@ -79,14 +86,41 @@ void yuboxMuestrearFases(void)
 
 void TaskPredition()
 {
-  sensor->GetMedicionTrifasica();
-  float number1 = 5.01 * (random(100) / 100.0);
-  float number2 = 5.01 * (random(100) / 100.0);
-  nn->getInputBuffer()[0] = number1;
-  nn->getInputBuffer()[1] = number2;
-  float result = nn->predict();
+  DateTime now = rtc.now();
 
-  Serial.printf("%.2f %.2f - result %.2f \n", number1, number2, result);
+  // Calcular milisegundos desde la medianoche para la hora actual y para cada
+  // uno de los instantes de alimentación.
+#define SEC_MEDIANOCHE(HH, MM, SS) ((SS + 60 * (MM + 60 * HH)))
+#define SEC_EN_DIA 86400000
+
+  uint32_t sec_ahora = SEC_MEDIANOCHE(now.hour(), now.minute(), now.second());
+
+  //Serial.printf("hora actual es: %02d:%02d:%02d (%d ms desde medianoche)\n",
+  //              now.hour(), now.minute(), now.second(), msec_ahora);
+
+  //sensor->GetMedicionTrifasica();
+  float seconds = sec_ahora;
+  float day = now.dayOfTheWeek();
+
+  float number3 = 220.01 * (random(100) / 100.0);
+  float number4 = 220.01 * (random(100) / 100.0);
+  float number5 = 220.01 * (random(100) / 100.0);
+  float number6 = 220.01 * (random(100) / 100.0);
+  float number7 = 220.01 * (random(100) / 100.0);
+  float number8 = 220.01 * (random(100) / 100.0);
+
+  nn->getInputBuffer()[0] = seconds;
+  nn->getInputBuffer()[1] = day;
+  nn->getInputBuffer()[2] = number3;
+  nn->getInputBuffer()[3] = number4;
+  nn->getInputBuffer()[4] = number5;
+  nn->getInputBuffer()[5] = number6;
+  nn->getInputBuffer()[6] = number7;
+  nn->getInputBuffer()[7] = number8;
+
+  float *result = nn->getOutputBuffer();
+
+  Serial.printf("%.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f- result %.2f %.2f %.2f\n", seconds, day, number3, number4, number5, number6, number7, number8, result[0], result[1], result[2]);
 }
 
 void ReciveDataNow(char MAC[], char text[])
@@ -148,5 +182,28 @@ void ReciveDataNow(char MAC[], char text[])
       Serial.println("Error Flashear modelo");
     }
     ESP.restart();
+  }
+}
+
+void iniciarHoraDesdeRTC(void)
+{
+  Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL);
+  if (!rtc.begin(&Wire))
+  {
+    Serial.println("no se dispone de RTC! Se continúa sin fecha hasta obtener NTP.");
+  }
+  else
+  {
+    Serial.println("RTC DS3231 detectado correctamente...");
+    // Para primera inicialización, se ajusta fecha y hora
+
+    if (rtc.lostPower())
+    {
+      Serial.println("RTC DS3231 perdió energía o primer arranque, se ajusta...");
+      // TODO: warm reset puede haber preservado hora interna, debería aprovecharse
+
+      // Fijar a fecha y hora de compilacion - SE ASUME HORA UTC POR AHORA
+      rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+    }
   }
 }

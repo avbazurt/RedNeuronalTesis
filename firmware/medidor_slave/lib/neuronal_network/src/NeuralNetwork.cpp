@@ -23,7 +23,7 @@ NeuralNetwork::NeuralNetwork()
         return;
     }
     // This pulls in the operators implementations we need
-    resolver = new tflite::MicroMutableOpResolver<10>();
+    resolver = new tflite::MicroMutableOpResolver<15>();
     resolver->AddFullyConnected();
     resolver->AddMul();
     resolver->AddAdd();
@@ -163,8 +163,8 @@ float *NeuralNetwork::getInputBuffer()
     return input->data.f;
 }
 
-float NeuralNetwork::predict()
+float *NeuralNetwork::getOutputBuffer()
 {
     interpreter->Invoke();
-    return output->data.f[0];
+    return output->data.f;
 }

@@ -39,8 +39,6 @@ class RedNeuronal:
         self.ouput_test = np.array(ouput_test).tolist()
 
 
-
-
     def ConfigurarModelo(self):
         self.model = tf.keras.Sequential()
 

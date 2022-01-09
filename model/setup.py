@@ -26,5 +26,6 @@ setup(
     url='https://github.com/avbazurt',
     author='vidalbazurto',
     author_email='avbazurt@espol.edu.ec',
-    description='Tesis 2021'
+    description='Tesis 2021',
+    install_requires=requirements
 )
