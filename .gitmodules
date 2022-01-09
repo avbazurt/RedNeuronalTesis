@@ -7,3 +7,9 @@
 [submodule "firmware/medidor_slave/lib/yubox-now-flasher-nextion"]
 	path = firmware/medidor_slave/lib/yubox-now-flasher-nextion
 	url = https://github.com/yubox-node-org/yubox-now-flasher-nextion
+[submodule "firmware/medidor_slave/lib/AsyncTCP"]
+	path = firmware/medidor_slave/lib/AsyncTCP
+	url = https://github.com/me-no-dev/AsyncTCP
+[submodule "firmware/medidor_slave/lib/ESPAsyncWebServer"]
+	path = firmware/medidor_slave/lib/ESPAsyncWebServer
+	url = https://github.com/yubox-node-org/ESPAsyncWebServer

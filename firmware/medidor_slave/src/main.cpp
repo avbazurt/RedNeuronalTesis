@@ -46,8 +46,11 @@ void setup()
                               PZEM_ADDRESS_FASE_B,
                               PZEM_ADDRESS_FASE_C);
 
+  sensor->setModeSimulation();
+
   nn = new NeuralNetwork();
 
+  WiFi.mode(WIFI_AP_STA);
   yuboxSimpleSetup();
   yuboxAddManagedHandler(&eventosLector);
   YuboxWiFi.releaseControlOfWiFi();
@@ -98,29 +101,24 @@ void TaskPredition()
   //Serial.printf("hora actual es: %02d:%02d:%02d (%d ms desde medianoche)\n",
   //              now.hour(), now.minute(), now.second(), msec_ahora);
 
-  //sensor->GetMedicionTrifasica();
   float seconds = sec_ahora;
   float day = now.dayOfTheWeek();
 
-  float number3 = 220.01 * (random(100) / 100.0);
-  float number4 = 220.01 * (random(100) / 100.0);
-  float number5 = 220.01 * (random(100) / 100.0);
-  float number6 = 220.01 * (random(100) / 100.0);
-  float number7 = 220.01 * (random(100) / 100.0);
-  float number8 = 220.01 * (random(100) / 100.0);
+  sensor->GetMedicionTrifasica();
 
   nn->getInputBuffer()[0] = seconds;
   nn->getInputBuffer()[1] = day;
-  nn->getInputBuffer()[2] = number3;
-  nn->getInputBuffer()[3] = number4;
-  nn->getInputBuffer()[4] = number5;
-  nn->getInputBuffer()[5] = number6;
-  nn->getInputBuffer()[6] = number7;
-  nn->getInputBuffer()[7] = number8;
+  nn->getInputBuffer()[2] = sensor->DatosFaseA.FP;
+  nn->getInputBuffer()[3] = sensor->DatosFaseB.FP;
+  nn->getInputBuffer()[4] = sensor->DatosFaseC.FP;
+  nn->getInputBuffer()[5] = sensor->DatosFaseA.P;
+  nn->getInputBuffer()[6] = sensor->DatosFaseB.P;
+  nn->getInputBuffer()[7] = sensor->DatosFaseC.P;
 
   float *result = nn->getOutputBuffer();
 
-  Serial.printf("%.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f- result %.2f %.2f %.2f\n", seconds, day, number3, number4, number5, number6, number7, number8, result[0], result[1], result[2]);
+  Serial.printf("%.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f- result %.2f %.2f %.2f\n", 
+  seconds, day, sensor->DatosFaseA.FP, sensor->DatosFaseB.FP, sensor->DatosFaseC.FP, sensor->DatosFaseA.P, sensor->DatosFaseB.P, sensor->DatosFaseC.P, result[0], result[1], result[2]);
 }
 
 void ReciveDataNow(char MAC[], char text[])

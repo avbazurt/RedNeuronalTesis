@@ -1,5 +1,6 @@
 #include "SPI.h"
 #include "SD.h"
+#include <esp_now.h>
 
 #include "HAL_NextionUI.h"
 #include "Nextion.h"
@@ -301,6 +302,7 @@ static void NextionUI_globalPause(bool p)
 
 static YuboxOTA_Flasher *_createNextionFlasher(void)
 {
+    esp_now_deinit();
     YuboxOTA_Flasher_Nextion *f = new YuboxOTA_Flasher_Nextion();
     f->attachNextion(std::bind(&NextionUI_globalPause, std::placeholders::_1), &nexSerial);
     return f;
