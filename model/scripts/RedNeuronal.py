@@ -28,8 +28,18 @@ class RedNeuronal:
 
 
     def UpdateDatos(self):
-        X, Y = make_circles(n_samples=500, factor=0.5, noise=0.05)
-        X = 5 * X
+        kp = 1
+        n1 = np.arange(0, 220, kp)
+        n2 = np.arange(0, 220, kp)
+        n3 = np.arange(0, 220, kp)
+        n4 = np.arange(0, 220, kp)
+        n5 = np.arange(0, 220, kp)
+        n6 = np.arange(0, 220, kp)
+        n7 = np.arange(0, 220, kp)
+        n8 = np.arange(0, 220, kp)
+
+        X = np.transpose([n1, n2, n3, n4, n5, n6, n7, n8])
+        Y = np.random.randint(0, 2, size=[np.shape(X)[0], 3])
 
         input_train, input_test, ouput_train,ouput_test = train_test_split(X,Y,train_size=0.8,random_state=23)
 
@@ -42,9 +52,10 @@ class RedNeuronal:
     def ConfigurarModelo(self):
         self.model = tf.keras.Sequential()
 
-        self.model.add(layers.Dense(16, activation='relu', input_dim=2))
+        self.model.add(layers.Dense(32, activation='sigmoid', input_dim=8))
+        self.model.add(layers.Dense(16, activation='relu'))
         self.model.add(layers.Dense(8, activation='relu'))
-        self.model.add(layers.Dense(1, activation='sigmoid'))
+        self.model.add(layers.Dense(3, activation='sigmoid'))
 
         # Configulación del entrenamiento
         self.model.compile(loss='mse', optimizer='adam', metrics=['accuracy'])
@@ -72,3 +83,7 @@ class RedNeuronal:
         return c_array.split(",")
 
 
+    def Predicion(self,list_entrada):
+        input_predic = np.array([list_entrada])
+
+        return self.model.predict(input_predic)
