@@ -5,6 +5,7 @@
 
 #include <TaskScheduler.h>
 #include <RTClib.h>
+#include "PCA9536.h"
 
 #include "HAL_now.h"
 #include "HAL_NextionUI.h"
@@ -27,19 +28,27 @@ ESP32_now *now;
 NeuralNetwork *nn;
 PZEM_Trifasico *sensor;
 
+// Objeto Rele i2C
+PCA9536 *releI2C;
+
 // Objeto que controla el RTC DS3231
 RTC_DS3231 rtc;
 void iniciarHoraDesdeRTC(void);
 
-
 // Callback
 void ReciveDataNow(char MAC[], char text[]);
+
+int histeresis(float valor, float tp);
 
 void setup()
 {
   NextionUI_initialize(yubox_HTTPServer);
   Serial.begin(115200);
+
   iniciarHoraDesdeRTC();
+
+  releI2C = new PCA9536();
+  releI2C->setup();
 
   sensor = new PZEM_Trifasico(PZEM_SERIAL, PZEM_RX_PIN, PZEM_TX_PIN,
                               PZEM_ADDRESS_FASE_A,
@@ -64,11 +73,17 @@ void setup()
   task_yuboxMuestrearFases.enable();
 }
 
+uint32_t port = 0;
+
 void loop()
 {
   yuboxSimpleLoopTask();
   NextionUI_runEvents(*sensor);
   mainScheduler.execute();
+
+  releI2C->output(port % 16);
+  ++port;
+  delay(1000);
 }
 
 void yuboxMuestrearFases(void)
@@ -98,9 +113,6 @@ void TaskPredition()
 
   uint32_t sec_ahora = SEC_MEDIANOCHE(now.hour(), now.minute(), now.second());
 
-  //Serial.printf("hora actual es: %02d:%02d:%02d (%d ms desde medianoche)\n",
-  //              now.hour(), now.minute(), now.second(), msec_ahora);
-
   float seconds = sec_ahora;
   float day = now.dayOfTheWeek();
 
@@ -117,8 +129,29 @@ void TaskPredition()
 
   float *result = nn->getOutputBuffer();
 
-  Serial.printf("%.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f- result %.2f %.2f %.2f\n", 
-  seconds, day, sensor->DatosFaseA.FP, sensor->DatosFaseB.FP, sensor->DatosFaseC.FP, sensor->DatosFaseA.P, sensor->DatosFaseB.P, sensor->DatosFaseC.P, result[0], result[1], result[2]);
+  int rele_faseA = histeresis(result[0], 0.30);
+  int rele_faseB = histeresis(result[1], 0.40);
+  int rele_faseC = histeresis(result[2], 0.30);
+
+  Serial.printf("hora actual es: %02d:%02d:%02d \n", now.hour(), now.minute(), now.second());
+  Serial.printf("%.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f- result %.2f %.2f %.2f\n",
+                seconds, day, sensor->DatosFaseA.FP, sensor->DatosFaseB.FP, sensor->DatosFaseC.FP, sensor->DatosFaseA.P, sensor->DatosFaseB.P, sensor->DatosFaseC.P, result[0], result[1], result[2]);
+
+  Serial.println("Histeresis: ");
+  Serial.println(rele_faseA);
+  Serial.println(rele_faseB);
+  Serial.println(rele_faseC);
+
+  int output_rele = 0b00000000;
+  Serial.println("Control Reles");
+  Serial.println(output_rele, BIN);
+
+  output_rele = output_rele | (rele_faseA * 0b00000001);
+  Serial.println(output_rele, BIN);
+  output_rele = output_rele | (rele_faseB * 0b00000010);
+  Serial.println(output_rele, BIN);
+  output_rele = output_rele | (rele_faseC * 0b00000100);
+  Serial.println(output_rele, BIN);
 }
 
 void ReciveDataNow(char MAC[], char text[])
@@ -203,5 +236,17 @@ void iniciarHoraDesdeRTC(void)
       // Fijar a fecha y hora de compilacion - SE ASUME HORA UTC POR AHORA
       rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
     }
+  }
+}
+
+int histeresis(float valor, float tp)
+{
+  if (valor > tp)
+  {
+    return 1;
+  }
+  else
+  {
+    return 0;
   }
 }
