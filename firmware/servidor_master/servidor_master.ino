@@ -1,5 +1,8 @@
 #include "HAL_now.h"
 #include <ArduinoJson.h>
+#include "HAL_config.h"
+
+//#define PIN_HARDWARE_SERIAL 1
 
 String inputString = "";      // Cadena para guardar el comando recibido
 bool stringComplete = false;  // Bandera boleana que nos indica cuando el comando fue recibido y podemos compararlo con los 2 comandos válidos
@@ -20,30 +23,28 @@ void Alarma(char MAC[], char text[])
   Serial.printf("Received message from: %s | %s\n", MAC, text);
 }
 
-
 void setup() {
   // initialize serial:
   Serial.begin(115200);
-  Serial2.begin(115200, SERIAL_8N1, RXD2, TXD2);
-
+  #ifdef PIN_HARDWARE_SERIAL
+    Serial.println("Pin Hardware Serial configurado");
+    ESP_serial.begin(115200, SERIAL_8N1, PIN_SERIAL_RX, PIN_SERIAL_TX);
+  #else
+    Serial.println("Serial 0 Utilizado");
+  #endif
 
   // reserve 200 bytes for the inputString:
   inputString.reserve(750);
-
-
   now = new ESP32_now();
   now->setReciveCallback(Alarma);
   now->begin();
 }
 
 void loop() {
-
   if (stringComplete) {//El comando fue recibido, procedemos a compararlo
     Serial.println(inputString);
-    
     DynamicJsonDocument doc(2024);
     deserializeJson(doc, inputString);
-
 
     const char* cmd = doc["cmd"];
 
@@ -65,12 +66,13 @@ void loop() {
 
         String text = String(msg);
 
-        now->sentData(peerAddress, msg);
-
-
+        Serial.print("msg: ");
+        Serial.println(text);
+        now->sentData(peerAddress, msg);        
       }
       else {
-        Serial.println("MAC invalida");
+        //Serial.println("MAC invalida");
+        2+2;
       }
     }
 
@@ -79,9 +81,16 @@ void loop() {
   }
 }
 
-void serialEvent2() {
-  while (Serial2.available()) {//Mientras tengamos caracteres disponibles en el buffer
-    char inChar = (char)Serial2.read();//Leemos el siguiente caracter
+
+
+#ifdef PIN_HARDWARE_SERIAL
+void serialEvent1() 
+#else 
+void serialEvent()
+#endif
+{
+  while (ESP_serial.available()) {//Mientras tengamos caracteres disponibles en el buffer
+    char inChar = (char)ESP_serial.read();//Leemos el siguiente caracter
     if (inChar == '\n') {//Si el caracter recibido corresponde a un salto de línea
       stringComplete = true;//Levantamos la bandera
     }

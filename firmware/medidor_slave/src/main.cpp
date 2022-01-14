@@ -46,7 +46,6 @@ void setup()
   Serial.begin(115200);
 
   iniciarHoraDesdeRTC();
-
   releI2C = new PCA9536();
   releI2C->setup();
 
@@ -59,7 +58,7 @@ void setup()
 
   nn = new NeuralNetwork();
 
-  WiFi.mode(WIFI_AP_STA);
+
   yuboxSimpleSetup();
   yuboxAddManagedHandler(&eventosLector);
   YuboxWiFi.releaseControlOfWiFi();
@@ -80,10 +79,6 @@ void loop()
   yuboxSimpleLoopTask();
   NextionUI_runEvents(*sensor);
   mainScheduler.execute();
-
-  releI2C->output(port % 16);
-  ++port;
-  delay(1000);
 }
 
 void yuboxMuestrearFases(void)
@@ -104,6 +99,7 @@ void yuboxMuestrearFases(void)
 
 void TaskPredition()
 {
+  /*
   DateTime now = rtc.now();
 
   // Calcular milisegundos desde la medianoche para la hora actual y para cada
@@ -133,6 +129,9 @@ void TaskPredition()
   int rele_faseB = histeresis(result[1], 0.40);
   int rele_faseC = histeresis(result[2], 0.30);
 
+  /*
+
+  /*
   Serial.printf("hora actual es: %02d:%02d:%02d \n", now.hour(), now.minute(), now.second());
   Serial.printf("%.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f- result %.2f %.2f %.2f\n",
                 seconds, day, sensor->DatosFaseA.FP, sensor->DatosFaseB.FP, sensor->DatosFaseC.FP, sensor->DatosFaseA.P, sensor->DatosFaseB.P, sensor->DatosFaseC.P, result[0], result[1], result[2]);
@@ -141,7 +140,7 @@ void TaskPredition()
   Serial.println(rele_faseA);
   Serial.println(rele_faseB);
   Serial.println(rele_faseC);
-
+  
   int output_rele = 0b00000000;
   Serial.println("Control Reles");
   Serial.println(output_rele, BIN);
@@ -152,6 +151,8 @@ void TaskPredition()
   Serial.println(output_rele, BIN);
   output_rele = output_rele | (rele_faseC * 0b00000100);
   Serial.println(output_rele, BIN);
+  */
+ 
 }
 
 void ReciveDataNow(char MAC[], char text[])

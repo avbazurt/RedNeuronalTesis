@@ -29,7 +29,6 @@ void ESP32_now::receiveCallback(const uint8_t *macAddr, const uint8_t *data, int
 
 void ESP32_now::sentCallback(const uint8_t *macAddr, esp_now_send_status_t status)
 {
-
     char macStr[18];
     formatMacAddress(macAddr, macStr, 18);
     Serial.print("Last Packet Sent to: ");
@@ -46,6 +45,7 @@ void ESP32_now::sentCallback(const uint8_t *macAddr, esp_now_send_status_t statu
     }
 
     Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+    Serial.println("");
     //return status == ESP_NOW_SEND_SUCCESS;
 }
 
@@ -96,7 +96,6 @@ bool ESP32_now::sentData(uint8_t peerAddress[], const String &message)
 
     Serial.print("Estado: ");
     Serial.println(status_send);
-
     return status_send;
     /*
     if (result == ESP_OK)
