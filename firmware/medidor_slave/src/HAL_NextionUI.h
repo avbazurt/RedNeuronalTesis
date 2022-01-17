@@ -8,7 +8,7 @@ void NextionUI_NextIndice(int indice);
 void NextionUI_flah_model(int indice,bool initialize = false);
 
 void NextionUI_initialize(AsyncWebServer & srv);
-void NextionUI_runEvents(PZEM_Trifasico Sensor, RTC_DS3231 rtc);
+void NextionUI_runEvents(PZEM_Trifasico Sensor);
 
 
 

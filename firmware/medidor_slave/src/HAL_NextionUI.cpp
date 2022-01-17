@@ -154,7 +154,6 @@ static void NextionUI_UpdateParametros(int page)
             text_2.setText("IP");
             text_3.setText("LAST");
 
-
             dato_1.setText("");
             dato_2.setText("");
             dato_3.setText("");
@@ -166,7 +165,6 @@ static void NextionUI_UpdateParametros(int page)
             dato_1.setText(WiFi.macAddress().c_str());
             dato_2.setText("192.168.4.1");
             dato_3.setText("LAST");
-
 
             break;
         default:
@@ -249,10 +247,18 @@ void FormatData(NexText text, float valor, String unidad)
     text.setText(buffer);
 }
 
-static void NextionUI_UpdateData(int page, PZEM_Trifasico Sensor, DateTime now)
+static void NextionUI_UpdateData(int page, PZEM_Trifasico Sensor)
 {
+    struct tm timeinfo;
+    time_t ts_ahora;
+
+    // ¿Qué hora es? Se asume hora sistema correcta vía NTP
+    ts_ahora = time(NULL);
+    localtime_r(&ts_ahora, &timeinfo);
+    
+
     char buffer[100];
-    sprintf(buffer, "%0.2d:%0.2d:%0.2d", now.hour(), now.minute(), now.second());
+    sprintf(buffer, "%0.2d:%0.2d:%0.2d", timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
     text_hora.setText(buffer);
 
     switch (page)
@@ -321,14 +327,14 @@ void NextionUI_initialize(AsyncWebServer &srv)
                                 std::bind(&_createNextionFlasher));
 }
 
-void NextionUI_runEvents(PZEM_Trifasico Sensor, RTC_DS3231 rtc)
+void NextionUI_runEvents(PZEM_Trifasico Sensor)
 // Esta funcion se encarga de habilitar los eventos de la pantalla
 {
     if (_globalPause)
         return;
     if (!_FlashModel)
     {
-        NextionUI_UpdateData(HMI_page, Sensor, rtc.now());
+        NextionUI_UpdateData(HMI_page,Sensor);
     }
     else
     {

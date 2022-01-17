@@ -23,6 +23,12 @@ Task task_yuboxMuestrearFases(TASK_SECOND * 1, TASK_FOREVER, &yuboxMuestrearFase
 void TaskPredition();
 Task task_predition(2 * TASK_SECOND, TASK_FOREVER, &TaskPredition, &mainScheduler);
 
+// Actualizar otra vez RTC cada 15 minutos
+void yuboxUpdateRTC(void);
+Task task_yuboxUpdateRTC(TASK_SECOND * 10, TASK_FOREVER, &yuboxUpdateRTC, &mainScheduler);
+
+void mostrarHora(void);
+
 // Clases Necesarias
 ESP32_now *now;
 NeuralNetwork *nn;
@@ -33,6 +39,7 @@ PCA9536 *releI2C;
 
 // Objeto que controla el RTC DS3231
 RTC_DS3231 rtc;
+bool rtc_valid = false;
 void iniciarHoraDesdeRTC(void);
 
 // Callback
@@ -44,6 +51,7 @@ void setup()
 {
   NextionUI_initialize(yubox_HTTPServer);
   Serial.begin(115200);
+  Wire.setPins(PIN_I2C_SDA, PIN_I2C_SCL);
 
   iniciarHoraDesdeRTC();
   releI2C = new PCA9536();
@@ -58,15 +66,18 @@ void setup()
 
   nn = new NeuralNetwork();
 
-
-  yuboxSimpleSetup();
   yuboxAddManagedHandler(&eventosLector);
+  yuboxSimpleSetup();
+
   YuboxWiFi.releaseControlOfWiFi();
   YuboxWiFi.saveControlOfWiFi();
 
   now = new ESP32_now();
   now->setReciveCallback(ReciveDataNow);
   now->begin();
+
+  // Actualización de RTC
+  task_yuboxUpdateRTC.enable();
 
   task_predition.enable();
   task_yuboxMuestrearFases.enable();
@@ -77,12 +88,13 @@ uint32_t port = 0;
 void loop()
 {
   yuboxSimpleLoopTask();
-  NextionUI_runEvents(*sensor,rtc);
+  NextionUI_runEvents(*sensor);
   mainScheduler.execute();
 }
 
 void yuboxMuestrearFases(void)
 {
+  mostrarHora();
   DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(3));
   json_doc["ts"] = 1000ULL * YuboxNTPConf.getUTCTime();
   json_doc["temperature"] = random(1, 100);
@@ -99,18 +111,22 @@ void yuboxMuestrearFases(void)
 
 void TaskPredition()
 {
-  /*
-  DateTime now = rtc.now();
+    struct tm timeinfo;
+    time_t ts_ahora;
+
+    // ¿Qué hora es? Se asume hora sistema correcta vía NTP
+    ts_ahora = time(NULL);
+    localtime_r(&ts_ahora, &timeinfo);
 
   // Calcular milisegundos desde la medianoche para la hora actual y para cada
   // uno de los instantes de alimentación.
 #define SEC_MEDIANOCHE(HH, MM, SS) ((SS + 60 * (MM + 60 * HH)))
 #define SEC_EN_DIA 86400000
 
-  uint32_t sec_ahora = SEC_MEDIANOCHE(now.hour(), now.minute(), now.second());
+  uint32_t sec_ahora = SEC_MEDIANOCHE(timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
 
   float seconds = sec_ahora;
-  float day = now.dayOfTheWeek();
+  float day = timeinfo.tm_wday;
 
   sensor->GetMedicionTrifasica();
 
@@ -129,18 +145,18 @@ void TaskPredition()
   int rele_faseB = histeresis(result[1], 0.40);
   int rele_faseC = histeresis(result[2], 0.30);
 
-  /*
-
-  /*
-  Serial.printf("hora actual es: %02d:%02d:%02d \n", now.hour(), now.minute(), now.second());
+  
+  //Serial.printf("hora actual es: %02d:%02d:%02d \n", now.hour(), now.minute(), now.second());
   Serial.printf("%.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f- result %.2f %.2f %.2f\n",
                 seconds, day, sensor->DatosFaseA.FP, sensor->DatosFaseB.FP, sensor->DatosFaseC.FP, sensor->DatosFaseA.P, sensor->DatosFaseB.P, sensor->DatosFaseC.P, result[0], result[1], result[2]);
 
+
+  /*
   Serial.println("Histeresis: ");
   Serial.println(rele_faseA);
   Serial.println(rele_faseB);
   Serial.println(rele_faseC);
-  
+
   int output_rele = 0b00000000;
   Serial.println("Control Reles");
   Serial.println(output_rele, BIN);
@@ -152,7 +168,6 @@ void TaskPredition()
   output_rele = output_rele | (rele_faseC * 0b00000100);
   Serial.println(output_rele, BIN);
   */
- 
 }
 
 void ReciveDataNow(char MAC[], char text[])
@@ -188,7 +203,8 @@ void ReciveDataNow(char MAC[], char text[])
   else if (String(opcion) == "model")
   {
     const char *valor = doc["valor"];
-    int indice = doc["indice"];
+    int indice = doc["indice"
+  /*];
 
     int valor_entero = (long)strtol(valor, 0, 16);
     nn->new_model_tflite[indice] = valor_entero;
@@ -219,8 +235,9 @@ void ReciveDataNow(char MAC[], char text[])
 
 void iniciarHoraDesdeRTC(void)
 {
-  Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL);
-  if (!rtc.begin(&Wire))
+  // Inicialización y verificación de presencia de RTC
+  rtc_valid = rtc.begin();
+  if (!rtc_valid)
   {
     Serial.println("no se dispone de RTC! Se continúa sin fecha hasta obtener NTP.");
   }
@@ -228,7 +245,6 @@ void iniciarHoraDesdeRTC(void)
   {
     Serial.println("RTC DS3231 detectado correctamente...");
     // Para primera inicialización, se ajusta fecha y hora
-
     if (rtc.lostPower())
     {
       Serial.println("RTC DS3231 perdió energía o primer arranque, se ajusta...");
@@ -237,7 +253,24 @@ void iniciarHoraDesdeRTC(void)
       // Fijar a fecha y hora de compilacion - SE ASUME HORA UTC POR AHORA
       rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
     }
+    else
+    {
+      Serial.println("Iniciar hasta recibir NTP.");
+
+      // Indicar como valor de RTC lo que reporte el chip, hasta recibir NTP
+      DateTime rtc_now = rtc.now();
+      YuboxNTPConf.setRTCHint(rtc_now.unixtime());
+    }
   }
+}
+
+void yuboxUpdateRTC(void)
+{
+  if (!rtc_valid)
+    return; // Sólo actualizar si se tiene RTC
+
+  Serial.println("Actualizar Hora");
+  rtc.adjust(DateTime(time(NULL)));
 }
 
 int histeresis(float valor, float tp)
@@ -250,4 +283,26 @@ int histeresis(float valor, float tp)
   {
     return 0;
   }
+}
+
+void mostrarHora(void) {
+  struct tm timeinfo;
+  time_t ts_ahora;
+
+
+
+  // ¿Qué hora es? Se asume hora sistema correcta vía NTP
+  ts_ahora = time(NULL);
+  localtime_r(&ts_ahora, &timeinfo);
+
+  // Calcular milisegundos desde la medianoche para la hora actual y para cada
+  // uno de los instantes de alimentación.
+#define MSEC_MEDIANOCHE(HH, MM, SS) (1000 * (SS + 60 * (MM + 60 * HH)))
+#define MSEC_EN_DIA                 86400000
+
+  uint32_t msec_ahora = MSEC_MEDIANOCHE(timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+
+  Serial.printf("hora actual es: %02d:%02d:%02d (%d ms desde medianoche)\n",
+        timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec, msec_ahora);
+
 }
