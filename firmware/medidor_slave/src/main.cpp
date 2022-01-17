@@ -77,7 +77,7 @@ uint32_t port = 0;
 void loop()
 {
   yuboxSimpleLoopTask();
-  NextionUI_runEvents(*sensor);
+  NextionUI_runEvents(*sensor,rtc);
   mainScheduler.execute();
 }
 
