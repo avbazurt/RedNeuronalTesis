@@ -2,6 +2,7 @@
 #include "NeuralNetwork.h"
 #include "PZEM_Trifasico.h"
 #include <YuboxSimple.h>
+#include <Preferences.h>
 
 #include <TaskScheduler.h>
 #include <RTClib.h>
@@ -37,6 +38,11 @@ PZEM_Trifasico *sensor;
 // Objeto Rele i2C
 PCA9536 *releI2C;
 
+float adjuste_FaseA = 0.5;
+float adjuste_FaseB = 0.5;
+float adjuste_FaseC = 0.5;
+
+
 // Objeto que controla el RTC DS3231
 RTC_DS3231 rtc;
 bool rtc_valid = false;
@@ -44,7 +50,6 @@ void iniciarHoraDesdeRTC(void);
 
 // Callback
 void ReciveDataNow(char MAC[], char text[]);
-
 int histeresis(float valor, float tp);
 
 void setup()
@@ -94,7 +99,6 @@ void loop()
 
 void yuboxMuestrearFases(void)
 {
-  mostrarHora();
   DynamicJsonDocument json_doc(JSON_OBJECT_SIZE(3));
   json_doc["ts"] = 1000ULL * YuboxNTPConf.getUTCTime();
   json_doc["temperature"] = random(1, 100);
@@ -111,12 +115,12 @@ void yuboxMuestrearFases(void)
 
 void TaskPredition()
 {
-    struct tm timeinfo;
-    time_t ts_ahora;
+  struct tm timeinfo;
+  time_t ts_ahora;
 
-    // ¿Qué hora es? Se asume hora sistema correcta vía NTP
-    ts_ahora = time(NULL);
-    localtime_r(&ts_ahora, &timeinfo);
+  // ¿Qué hora es? Se asume hora sistema correcta vía NTP
+  ts_ahora = time(NULL);
+  localtime_r(&ts_ahora, &timeinfo);
 
   // Calcular milisegundos desde la medianoche para la hora actual y para cada
   // uno de los instantes de alimentación.
@@ -141,17 +145,30 @@ void TaskPredition()
 
   float *result = nn->getOutputBuffer();
 
-  int rele_faseA = histeresis(result[0], 0.30);
-  int rele_faseB = histeresis(result[1], 0.40);
-  int rele_faseC = histeresis(result[2], 0.30);
-
-  
-  //Serial.printf("hora actual es: %02d:%02d:%02d \n", now.hour(), now.minute(), now.second());
   Serial.printf("%.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f- result %.2f %.2f %.2f\n",
                 seconds, day, sensor->DatosFaseA.FP, sensor->DatosFaseB.FP, sensor->DatosFaseC.FP, sensor->DatosFaseA.P, sensor->DatosFaseB.P, sensor->DatosFaseC.P, result[0], result[1], result[2]);
 
 
+  int rele_faseA = 0b00000001*((int)(result[0]>=adjuste_FaseA));
+  int rele_faseB = 0b00000010*((int)(result[1]>=adjuste_FaseB));
+  int rele_faseC = 0b00000100*((int)(result[2]>=adjuste_FaseC));
+
+  int output_rele = rele_faseA | rele_faseB | rele_faseC;
+  Serial.println(output_rele,BIN);
+
   /*
+  int rele_faseA = histeresis(result[0], 0.30);
+  int rele_faseB = histeresis(result[1], 0.40);
+  int rele_faseC = histeresis(result[2], 0.30);
+
+
+
+  Serial.printf("hora actual es: %02d:%02d:%02d \n", now.hour(), now.minute(), now.second());
+
+  Serial.printf("%.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f- result %.2f %.2f %.2f\n",
+                seconds, day, sensor->DatosFaseA.FP, sensor->DatosFaseB.FP, sensor->DatosFaseC.FP, sensor->DatosFaseA.P, sensor->DatosFaseB.P, sensor->DatosFaseC.P, result[0], result[1], result[2]);
+
+
   Serial.println("Histeresis: ");
   Serial.println(rele_faseA);
   Serial.println(rele_faseB);
@@ -203,8 +220,7 @@ void ReciveDataNow(char MAC[], char text[])
   else if (String(opcion) == "model")
   {
     const char *valor = doc["valor"];
-    int indice = doc["indice"
-  /*];
+    int indice = doc["indice"];
 
     int valor_entero = (long)strtol(valor, 0, 16);
     nn->new_model_tflite[indice] = valor_entero;
@@ -223,6 +239,23 @@ void ReciveDataNow(char MAC[], char text[])
     if (nn->indice_new_model == nn->len_new_model_tflite)
     {
       Serial.println("Flasheando modelo");
+
+      struct tm timeinfo;
+      time_t ts_ahora;
+
+      Preferences flashMemory;
+      flashMemory.begin("model", false);
+
+      // ¿Qué hora es? Se asume hora sistema correcta vía NTP
+      ts_ahora = time(NULL);
+      localtime_r(&ts_ahora, &timeinfo);
+
+      char buffer[100];
+      sprintf(buffer, "%0.2d/%0.2d/%0.4d %0.2d:%0.2d:%0.2d", timeinfo.tm_mday, timeinfo.tm_mon + 1, timeinfo.tm_year + 1900, timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+
+      flashMemory.putString("date_flash", String(buffer));
+      flashMemory.end();
+
       nn->SaveModel();
     }
     else
@@ -285,11 +318,10 @@ int histeresis(float valor, float tp)
   }
 }
 
-void mostrarHora(void) {
+void mostrarHora(void)
+{
   struct tm timeinfo;
   time_t ts_ahora;
-
-
 
   // ¿Qué hora es? Se asume hora sistema correcta vía NTP
   ts_ahora = time(NULL);
@@ -298,11 +330,10 @@ void mostrarHora(void) {
   // Calcular milisegundos desde la medianoche para la hora actual y para cada
   // uno de los instantes de alimentación.
 #define MSEC_MEDIANOCHE(HH, MM, SS) (1000 * (SS + 60 * (MM + 60 * HH)))
-#define MSEC_EN_DIA                 86400000
+#define MSEC_EN_DIA 86400000
 
   uint32_t msec_ahora = MSEC_MEDIANOCHE(timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
 
   Serial.printf("hora actual es: %02d:%02d:%02d (%d ms desde medianoche)\n",
-        timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec, msec_ahora);
-
+                timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec, msec_ahora);
 }

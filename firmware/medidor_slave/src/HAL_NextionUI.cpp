@@ -4,6 +4,7 @@
 #include "SD.h"
 #include <esp_now.h>
 #include <RTClib.h>
+#include "Preferences.h"
 
 #include "HAL_NextionUI.h"
 #include "Nextion.h"
@@ -18,7 +19,7 @@ static bool _globalPause = false;
 static bool _FlashModel = false;
 //
 
-#define MAX_PANTALLA 5
+#define MAX_PANTALLA 6
 
 #define PANTALLA_VLN 0
 #define PANTALLA_IL 1
@@ -31,6 +32,7 @@ static bool _FlashModel = false;
 #define PANTALLA_MENU 7
 
 int HMI_page = 0;
+bool _MaxValue = false;
 
 // PANTALLA INFORMACION
 #define NEXTION_PAGE_MAIN 0
@@ -118,6 +120,8 @@ static void NextionUI_UpdateParametros(int page)
     }
     else
     {
+        Preferences flashMemory;
+        String fecha_hora;
         switch (page)
         {
         case PANTALLA_3PQS:
@@ -164,9 +168,14 @@ static void NextionUI_UpdateParametros(int page)
 
             dato_1.setText(WiFi.macAddress().c_str());
             dato_2.setText("192.168.4.1");
-            dato_3.setText("LAST");
 
+            flashMemory.begin("model", false);
+
+            fecha_hora = flashMemory.getString("date_flash", "");
+            dato_3.setText(fecha_hora.c_str());
+            flashMemory.end();
             break;
+
         default:
             break;
         }
@@ -181,9 +190,16 @@ void buttonNavigate(void *ptr)
     {
         String text;
         btn->getText(text);
+
         if (text == "MAX")
         {
-            Serial.println("MAX");
+            _MaxValue = !_MaxValue;
+            if (_MaxValue){
+                maximo.Set_background_color_bco(255);
+            }
+            else{
+                maximo.Set_background_color_bco(266);
+            }
         }
         else if (text == "MENU")
         {
@@ -240,10 +256,21 @@ void buttonNavigate(void *ptr)
     }
 }
 
-void FormatData(NexText text, float valor, String unidad)
+void FormatData(NexText text, float valor, float valorMax, String unidad)
 {
     char buffer[100];
-    sprintf(buffer, "%d.%02d%s", (int)valor, (int)(valor * 100) % 100, unidad);
+    float dato;
+
+    if (_MaxValue)
+    {
+        dato = valorMax;
+    }
+    else
+    {
+        dato = valor;
+    }
+
+    sprintf(buffer, "%d.%02d%s", (int)dato, (int)(dato * 100) % 100, unidad);
     text.setText(buffer);
 }
 
@@ -255,7 +282,6 @@ static void NextionUI_UpdateData(int page, PZEM_Trifasico Sensor)
     // ¿Qué hora es? Se asume hora sistema correcta vía NTP
     ts_ahora = time(NULL);
     localtime_r(&ts_ahora, &timeinfo);
-    
 
     char buffer[100];
     sprintf(buffer, "%0.2d:%0.2d:%0.2d", timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
@@ -264,45 +290,45 @@ static void NextionUI_UpdateData(int page, PZEM_Trifasico Sensor)
     switch (page)
     {
     case PANTALLA_VLN:
-        FormatData(dato_1, Sensor.DatosFaseA.VLN, "[V]");
-        FormatData(dato_2, Sensor.DatosFaseB.VLN, "[V]");
-        FormatData(dato_3, Sensor.DatosFaseC.VLN, "[V]");
+        FormatData(dato_1, Sensor.DatosFaseA.VLN, Sensor.MaxFaseA.VLN, "[V]");
+        FormatData(dato_2, Sensor.DatosFaseB.VLN, Sensor.MaxFaseB.VLN, "[V]");
+        FormatData(dato_3, Sensor.DatosFaseC.VLN, Sensor.MaxFaseB.VLN, "[V]");
         break;
 
     case PANTALLA_IL:
-        FormatData(dato_1, Sensor.DatosFaseA.I, "[A]");
-        FormatData(dato_2, Sensor.DatosFaseB.I, "[A]");
-        FormatData(dato_3, Sensor.DatosFaseC.I, "[A]");
+        FormatData(dato_1, Sensor.DatosFaseA.I, Sensor.MaxFaseA.I, "[A]");
+        FormatData(dato_2, Sensor.DatosFaseB.I, Sensor.MaxFaseB.I, "[A]");
+        FormatData(dato_3, Sensor.DatosFaseC.I, Sensor.MaxFaseC.I, "[A]");
         break;
 
     case PANTALLA_FP:
-        FormatData(dato_1, Sensor.DatosFaseA.FP, "");
-        FormatData(dato_2, Sensor.DatosFaseB.FP, "");
-        FormatData(dato_3, Sensor.DatosFaseC.FP, "");
+        FormatData(dato_1, Sensor.DatosFaseA.FP, Sensor.MaxFaseA.FP, "");
+        FormatData(dato_2, Sensor.DatosFaseB.FP, Sensor.MaxFaseB.FP, "");
+        FormatData(dato_3, Sensor.DatosFaseC.FP, Sensor.MaxFaseC.FP, "");
         break;
 
     case PANTALLA_3P:
-        FormatData(dato_1, Sensor.DatosFaseA.P, "[W]");
-        FormatData(dato_2, Sensor.DatosFaseB.P, "[W]");
-        FormatData(dato_3, Sensor.DatosFaseC.P, "[W]");
+        FormatData(dato_1, Sensor.DatosFaseA.P, Sensor.MaxFaseA.P, "[W]");
+        FormatData(dato_2, Sensor.DatosFaseB.P, Sensor.MaxFaseB.P, "[W]");
+        FormatData(dato_3, Sensor.DatosFaseC.P, Sensor.MaxFaseC.P, "[W]");
         break;
 
     case PANTALLA_3Q:
-        FormatData(dato_1, Sensor.DatosFaseA.Q, "[VAR]");
-        FormatData(dato_2, Sensor.DatosFaseB.Q, "[VAR]");
-        FormatData(dato_3, Sensor.DatosFaseC.Q, "[VAR]");
+        FormatData(dato_1, Sensor.DatosFaseA.Q, Sensor.MaxFaseA.Q, "[VAR]");
+        FormatData(dato_2, Sensor.DatosFaseB.Q, Sensor.MaxFaseB.Q, "[VAR]");
+        FormatData(dato_3, Sensor.DatosFaseC.Q, Sensor.MaxFaseC.Q, "[VAR]");
         break;
 
     case PANTALLA_3S:
-        FormatData(dato_1, Sensor.DatosFaseA.S, "[VA]");
-        FormatData(dato_2, Sensor.DatosFaseB.S, "[VA]");
-        FormatData(dato_3, Sensor.DatosFaseC.S, "[VA]");
+        FormatData(dato_1, Sensor.DatosFaseA.S, Sensor.MaxFaseA.S, "[VA]");
+        FormatData(dato_2, Sensor.DatosFaseB.S, Sensor.MaxFaseB.S, "[VA]");
+        FormatData(dato_3, Sensor.DatosFaseC.S, Sensor.MaxFaseC.S, "[VA]");
         break;
 
     case PANTALLA_3PQS:
-        FormatData(dato_1, Sensor.P3, "[kW]");
-        FormatData(dato_2, Sensor.Q3, "[kVAR]");
-        FormatData(dato_3, Sensor.S3, "[kVA]");
+        FormatData(dato_1, Sensor.TriFase.P3, Sensor.TriFase.P3_MAX, "[kW]");
+        FormatData(dato_2, Sensor.TriFase.Q3, Sensor.TriFase.Q3_MAX, "[kVAR]");
+        FormatData(dato_3, Sensor.TriFase.S3, Sensor.TriFase.S3_MAX, "[kVA]");
         break;
 
     default:
@@ -334,7 +360,7 @@ void NextionUI_runEvents(PZEM_Trifasico Sensor)
         return;
     if (!_FlashModel)
     {
-        NextionUI_UpdateData(HMI_page,Sensor);
+        NextionUI_UpdateData(HMI_page, Sensor);
     }
     else
     {
