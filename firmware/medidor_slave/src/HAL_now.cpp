@@ -4,8 +4,8 @@
 #include <ArduinoJson.h>
 
 void (*punteroCallback)(char MAC[], char text[]);
-bool status_send = false;
 bool init_now = false;
+bool status_send;
 
 void ESP32_now::formatMacAddress(const uint8_t *macAddr, char *buffer, int maxLength)
 {
@@ -94,10 +94,9 @@ bool ESP32_now::sentData(uint8_t peerAddress[], const String &message)
         esp_now_add_peer(&peerInfo);
     }
     esp_err_t result = esp_now_send(peerAddress, (const uint8_t *)message.c_str(), message.length());
-
+    vTaskDelay(75/portTICK_PERIOD_MS); 
     Serial.print("Estado: ");
     Serial.println(status_send);
-
     return status_send;
     /*
     if (result == ESP_OK)

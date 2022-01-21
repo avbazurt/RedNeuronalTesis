@@ -170,7 +170,6 @@ static void NextionUI_UpdateParametros(int page)
             dato_2.setText("192.168.4.1");
 
             flashMemory.begin("model", false);
-
             fecha_hora = flashMemory.getString("date_flash", "");
             dato_3.setText(fecha_hora.c_str());
             flashMemory.end();

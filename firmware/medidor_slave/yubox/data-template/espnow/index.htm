@@ -1,0 +1,36 @@
+<form class="mb-2">
+    <div class="form-group row">
+        <legend class="col-form-label col-sm-2">Estado muestreo:</legend>
+        <div class="col-form-label col-sm-4">
+            <h5>
+            <span id="running" class="badge badge-secondary">(consultando)</span>
+            </h5>
+        </div>
+        
+        <legend class="col-form-label col-sm-2">Ultimo Entrenamiento:</legend>
+        <div class="col-form-label col-sm-4">
+            <h5>
+            <span id="actualizacion" class="badge badge-secondary"></span>
+            </h5>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="medidor_id">Identidad MAC para envío de datos:</label>
+        <input type="text" id="medidor_id" name="medidor_id" class="form-control"
+          placeholder="30:AE:A4:07:0D:64" aria-describedby="medidor_idAyuda"
+          value="" pattern="^([\w-]){1,23}$" required/>
+        <small id="medidor_idAyuda" class="form-text text-muted">MAC del servidor</small>
+    </div>
+
+    <div class="form-group">
+        <label for="interval">Intervalo de envío muestras (segundos):</label>
+        <input type="number" id="interval" name="interval" class="form-control"
+          min="10" placeholder="30" aria-describedby="intervalAyuda"
+          value="" pattern="^[\d]+$" required/>
+        <small id="intervalAyuda" class="form-text text-muted">Cada intervalo, el muestreador enviará una muestra al servidor de recolección de muestras.</small>
+    </div>
+
+    <button type="button" class="btn btn-primary" name="apply">Actualizar</button>
+</form>
+

@@ -41,7 +41,7 @@ public:
     char *model_tflite;
 
     //Tamaño del buffer a utilizar
-    const int kArenaSize = 9500;
+    const int kArenaSize = 70000;
 
     // Funcion que permite cargar el modelo desde memoria SPIFF al arreglo model_tflite
     bool SaveModel();

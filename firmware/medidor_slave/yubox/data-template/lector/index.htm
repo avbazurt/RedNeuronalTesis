@@ -1,16 +1,106 @@
-<div class="card">
-    <div class="card-header">Condiciones atmosféricas</div>
-    <div class="card-body">
-        <div class="row">
-            <div class="col">
-                <canvas id="atmospheric"></canvas>
+<div id="chanstuck" class="alert alert-danger" role="alert" style="display: none;">
+    <p>El muestreo realizado es no-válido:</p>
+    <ul>
+        <li id="v_stuck0">VOLTAJE: canal medición trabado en CERO</li>
+        <li id="v_stuck1">VOLTAJE: canal medición trabado en MÁXIMO</li>
+        <li id="a_stuck0">CORRIENTE: canal medición trabado en CERO</li>
+        <li id="a_stuck1">CORRIENTE: canal medición trabado en MÁXIMO</li>
+    </ul>
+</div>
+
+<ul class="nav nav-tabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <a class="nav-link active" id="lector_power-tab" data-toggle="tab" href="#lector_power" role="tab" aria-controls="lector_power" aria-selected="true">Δ3Φ</a>
+    </li>
+    <li class="nav-item" role="presentation">
+      <a class="nav-link" id="lector_power_factor-tab" data-toggle="tab" href="#lector_power_factor" role="tab" aria-controls="lector_power_factor" aria-selected="false">F. Pot.</a>
+    </li>
+    <li class="nav-item" role="presentation">
+      <a class="nav-link" id="lector_current-tab" data-toggle="tab" href="#lector_current" role="tab" aria-controls="lector_current" aria-selected="false">Corriente</a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a class="nav-link" id="lector_voltage-tab" data-toggle="tab" href="#lector_voltage" role="tab" aria-controls="lector_voltage" aria-selected="false">Voltaje</a>
+    </li>
+</ul>
+<div class="tab-content">
+    <div class="tab-pane fade show active" id="lector_power" role="tabpanel" aria-labelledby="lector_power-tab">
+        <div class="card" id="card_power">
+            <div class="card-header">Triangulo de Potencia Trifasico </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col">
+                        <canvas id="canvas_power"></canvas>
+                    </div>
+                </div>
+                <div class="row row-cols-2 row-cols-md-6">
+                    <div class="col">P. aparente 3Φ:</div>
+                    <div class="col"><h3 style="display: inline;" id="real_power">0.00</h3> W</div>
+                    <div class="col">P. real 3Φ:</div>
+                    <div class="col"><h3 style="display: inline;" id="apparent_power">0.00</h3> VA</div>
+                    <div class="col">P. reactiva 3Φ:</div>
+                    <div class="col"><h3 style="display: inline;" id="reactive_power">0.00</h3> VAR</div>
+                </div>
             </div>
         </div>
-        <div class="row row-cols-2 row-cols-sm-4">
-            <div class="col">Temperatura (&deg;C):</div>
-            <div class="col"><h3 id="temp">0.00</h3></div>
-            <div class="col">Presión (Pa):</div>
-            <div class="col"><h3 id="press">0.00</h3></div>
+    </div>
+    <div class="tab-pane fade" id="lector_power_factor" role="tabpanel" aria-labelledby="lector_power_factor-tab">
+        <div class="card" id="card_power_factor">
+            <div class="card-header">Factor de potencia</div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col">
+                        <canvas id="canvas_power_factor"></canvas>
+                    </div>
+                </div>
+                <div class="row row-cols-2 row-cols-md-6">
+                    <div class="col">Fase A:</div>
+                    <div class="col"><h3 style="display: inline;" id="power_factor_a">0.00</h3></div>
+                    <div class="col">Fase B:</div>
+                    <div class="col"><h3 style="display: inline;" id="power_factor_b">0.00</h3></div>
+                    <div class="col">Fase C:</div>
+                    <div class="col"><h3 style="display: inline;" id="power_factor_c">0.00</h3></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="tab-pane fade" id="lector_current" role="tabpanel" aria-labelledby="lector_current-tab">
+        <div class="card" id="card_current">
+            <div class="card-header">Corriente</div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col">
+                        <canvas id="canvas_current"></canvas>
+                    </div>
+                </div>
+                <div class="row row-cols-2 row-cols-md-6">
+                    <div class="col">Fase A:</div>
+                    <div class="col"><h3 style="display: inline;" id="current_a">0.00</h3> A</div>
+                    <div class="col">Fase B:</div>
+                    <div class="col"><h3 style="display: inline;" id="current_b">0.00</h3> A</div>
+                    <div class="col">Fase C:</div>
+                    <div class="col"><h3 style="display: inline;" id="current_c">0.00</h3> A</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="tab-pane fade" id="lector_voltage" role="tabpanel" aria-labelledby="lector_voltage-tab">
+        <div class="card" id="card_voltage">
+            <div class="card-header">Voltaje</div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col">
+                        <canvas id="canvas_voltage"></canvas>
+                    </div>
+                </div>
+                <div class="row row-cols-2 row-cols-md-6">
+                    <div class="col">Fase A:</div>
+                    <div class="col"><h3 style="display: inline;" id="voltage_a">0.00</h3> V</div>
+                    <div class="col">Fase B:</div>
+                    <div class="col"><h3 style="display: inline;" id="voltage_a">0.00</h3> V</div>
+                    <div class="col">Fase C:</div>
+                    <div class="col"><h3 style="display: inline;" id="voltage_a">0.00</h3> V</div>
+                </div>
+            </div>
         </div>
     </div>
 </div>

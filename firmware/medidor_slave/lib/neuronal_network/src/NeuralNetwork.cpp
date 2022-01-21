@@ -4,8 +4,11 @@
 #include "tensorflow/lite/micro/micro_interpreter.h"
 #include "tensorflow/lite/schema/schema_generated.h"
 #include "tensorflow/lite/version.h"
+#include "model_data.h"
+
 #include <Preferences.h>
 #include "SPIFFS.h"
+
 
 #define file_model "/model.txt"
 
@@ -31,6 +34,10 @@ NeuralNetwork::NeuralNetwork()
     resolver->AddReshape();
     resolver->AddQuantize();
     resolver->AddDequantize();
+    resolver->AddConv2D();
+    resolver->AddConcatenation();
+    resolver->AddSoftmax();
+    resolver->AddMaxPool2D();
 
     tensor_arena = (uint8_t *)malloc(kArenaSize);
     if (!tensor_arena)
@@ -97,14 +104,27 @@ bool NeuralNetwork::LoadModel()
 {
     if (!SPIFFS.begin(true))
     {
-        Serial.println("An Error has occurred while mounting SPIFFS");
+        log_e("An Error has occurred while mounting SPIFFS");
         return false;
     }
+
+    if (!SPIFFS.exists(file_model)){
+        log_e("No se registra un modelo TFlite en memoria SPIFFS, se procede a utilizar un modelo generico");
+
+        log_i("Tamaño Buffer a crear: %d", converted_model_tflite_len);
+        model_tflite = new char[converted_model_tflite_len];
+
+        for (int indice = 0; indice<converted_model_tflite_len; indice++){
+            model_tflite[indice] = converted_model_tflite[indice];
+        }
+        return true;
+    }
+
 
     File file = SPIFFS.open(file_model);
     if (!file)
     {
-        Serial.println("Failed to open file for reading");
+        log_e("Failed to open file for reading");
         return false;
     }
 
@@ -134,7 +154,7 @@ bool NeuralNetwork::LoadModel()
             linea = String(fila);
             int len_model = linea.toInt();
 
-            Serial.printf("Tamaño Buffer a crear: %d\n", len_model);
+            log_i("Tamaño Buffer a crear: %d", len_model);
             model_tflite = new char[len_model];
         }
         else
@@ -149,12 +169,10 @@ bool NeuralNetwork::LoadModel()
 
             model_tflite[m - 1] = myInt;
         }
-
         m++;
     }
-
     file.close();
-
+    log_i("Modelo Cargado");
     return true;
 }
 

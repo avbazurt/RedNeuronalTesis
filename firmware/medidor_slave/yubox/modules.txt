@@ -1,1 +1,1 @@
-+lector ntpconfig webauth yuboxOTA
++lector contactores espnow ntpconfig webauth yuboxOTA
