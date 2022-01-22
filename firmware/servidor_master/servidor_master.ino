@@ -2,15 +2,12 @@
 #include <ArduinoJson.h>
 #include "HAL_config.h"
 
-//#define PIN_HARDWARE_SERIAL 1
+#define PIN_HARDWARE_SERIAL 1
 
 String inputString = "";      // Cadena para guardar el comando recibido
 bool stringComplete = false;  // Bandera boleana que nos indica cuando el comando fue recibido y podemos compararlo con los 2 comandos válidos
 
 ESP32_now *now;
-
-#define RXD2 16
-#define TXD2 17
 
 long strHexDec(String text) {
   char msg[10];
@@ -18,9 +15,26 @@ long strHexDec(String text) {
   return (long)strtol(msg, 0, 16);
 }
 
-void Alarma(char MAC[], char text[])
+void ReciveCallback(char MAC[], char text[])
 {
-  Serial.printf("Received message from: %s | %s\n", MAC, text);
+  log_i("Received message from: %s | %s\n", MAC, text);
+  String msg = String(text);
+  
+  DynamicJsonDocument json_data(JSON_OBJECT_SIZE(20));
+  
+  DeserializationError error = deserializeJson(json_data, msg);
+  if (error) {
+    log_e("deserializeJson() failed: %s",error.c_str());
+  return;
+  }
+ 
+  json_data["MAC"] = String(MAC);
+
+  String json_output;
+  serializeJson(json_data, json_output);
+  log_i("JSON Creado: %s",json_output);
+  
+  ESP_serial.println(json_output);
 }
 
 void setup() {
@@ -36,7 +50,7 @@ void setup() {
   // reserve 200 bytes for the inputString:
   inputString.reserve(750);
   now = new ESP32_now();
-  now->setReciveCallback(Alarma);
+  now->setReciveCallback(ReciveCallback);
   now->begin();
 }
 

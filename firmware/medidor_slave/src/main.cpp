@@ -7,7 +7,7 @@
 #include "PCA9536.h"
 
 #include "HAL_Yubox_Framework.h"
-#include "HAL_now.h"
+#include "ESPnow.h"
 #include "HAL_NextionUI.h"
 
 #include "HAL_config.h"
@@ -131,9 +131,11 @@ void setup()
   YuboxWiFi.releaseControlOfWiFi();
   YuboxWiFi.saveControlOfWiFi();
 
+
   now = new ESP32_now();
   now->setReciveCallback(ReciveDataNow);
   now->begin();
+
 
   // Actualización de RTC
   task_yuboxUpdateRTC.enable();
@@ -156,13 +158,27 @@ void loop()
 
 void espnowMuestrearFases(void)
 {
-  // uint8_t peerAddress[] = {0x98, 0xF4, 0xAB, 0x1B, 0x1E, 0xA0};
-  status_muestreo = now->sentData(MAC_servidor, "hola");
+  DynamicJsonDocument json_data(JSON_OBJECT_SIZE(13));
+  json_data["cmd"]  = "muestra";
+  json_data["VA"]   = sensor->DatosFaseA.VLN;
+  json_data["VB"]   = sensor->DatosFaseB.VLN;
+  json_data["VC"]   = sensor->DatosFaseC.VLN;
+  json_data["IA"]   = sensor->DatosFaseA.I;
+  json_data["IB"]   = sensor->DatosFaseB.I;
+  json_data["IC"]   = sensor->DatosFaseC.I;
+  json_data["FPA"]  = sensor->DatosFaseA.FP;
+  json_data["FPB"]  = sensor->DatosFaseB.FP;
+  json_data["FPC"]  = sensor->DatosFaseC.FP;
+
+  String json_output;
+  serializeJson(json_data, json_output);
+
+  status_muestreo = now->sentData(MAC_servidor, json_output);
 }
 
 void yuboxMuestrearFases(void)
 {
-
+  sensor->GetMedicionTrifasica();
   DynamicJsonDocument json_tablerow(JSON_OBJECT_SIZE(13) + 2 * JSON_OBJECT_SIZE(1));
   // NOTA: se usa bucle para dejar listo para soporte de múltiple fases
   String json_tableOutput = "[";
@@ -282,6 +298,8 @@ void ReciveDataNow(char MAC[], char text[])
   const char *opcion = doc["cmd"];
   if (String(opcion) == "new_model")
   {
+    task_espnowMuestrearFases.disable();
+
     int total_indice = doc["len"];
     nn->len_new_model_tflite = total_indice;
     Serial.print("Creando el Array");
@@ -639,14 +657,14 @@ void routeHandler_yuboxAPI_espnow_config_POST(AsyncWebServerRequest *request)
   String responseMsg = "";
   AsyncWebParameter *p;
 
-  int n_interval = 0;
+  int n_interval = second_muestreo;
 
-  int n_MAC_1 = 0;
-  int n_MAC_2 = 0;
-  int n_MAC_3 = 0;
-  int n_MAC_4 = 0;
-  int n_MAC_5 = 0;
-  int n_MAC_6 = 0;
+  int n_MAC_1 = MAC_servidor[0];
+  int n_MAC_2 = MAC_servidor[1];
+  int n_MAC_3 = MAC_servidor[2];
+  int n_MAC_4 = MAC_servidor[3];
+  int n_MAC_5 = MAC_servidor[4];
+  int n_MAC_6 = MAC_servidor[5];
 
 #define ASSIGN_FROM_POST(TAG, FMT)                       \
   if (!clientError && request->hasParam(#TAG, true))     \
@@ -684,7 +702,7 @@ void routeHandler_yuboxAPI_espnow_config_POST(AsyncWebServerRequest *request)
     MAC_servidor[5] = n_MAC_6;
 
     flashMemory.begin(namespace_configuration, false);
-    flashMemory.getInt(time_muestra, n_interval);
+    flashMemory.putInt(time_muestra, n_interval);
     flashMemory.putInt(addres_mac_1, n_MAC_1);
     flashMemory.putInt(addres_mac_2, n_MAC_2);
     flashMemory.putInt(addres_mac_3, n_MAC_3);

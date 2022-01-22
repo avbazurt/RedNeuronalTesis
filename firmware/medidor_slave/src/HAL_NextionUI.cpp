@@ -286,6 +286,7 @@ static void NextionUI_UpdateData(int page, PZEM_Trifasico Sensor)
     sprintf(buffer, "%0.2d:%0.2d:%0.2d", timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
     text_hora.setText(buffer);
 
+    Sensor.GetMedicionTrifasica();
     switch (page)
     {
     case PANTALLA_VLN:
