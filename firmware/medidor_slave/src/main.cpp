@@ -186,9 +186,9 @@ void yuboxMuestrearFases(void)
       json_tableOutput += ",";
 
     // Potencias y factor de potencia
-    json_tablerow["apparent_power"] = random(1, 100);
-    json_tablerow["real_power"] = random(1, 100);
-    json_tablerow["reactive_power"] = random(1, 100);
+    json_tablerow["apparent_power"] = sensor->TriFase.P3;
+    json_tablerow["real_power"] = sensor->TriFase.Q3;
+    json_tablerow["reactive_power"] = sensor->TriFase.S3;
 
     DynamicJsonDocument d(JSON_OBJECT_SIZE(1));
 
