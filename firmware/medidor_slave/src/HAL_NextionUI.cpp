@@ -204,7 +204,6 @@ void buttonNavigate(void *ptr)
         }
         else if (text == "MENU")
         {
-            Serial.println("Menu");
             HMI_page = PANTALLA_MENU;
             NextionUI_UpdateParametros(HMI_page);
         }
@@ -288,7 +287,12 @@ static void NextionUI_UpdateData(int page, PZEM_Trifasico Sensor)
     sprintf(buffer, "%0.2d:%0.2d:%0.2d", timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
     text_hora.setText(buffer);
 
+//*************************** EXPERIMENTO **************************
+#ifndef SIMULTATION_MATLAB
     Sensor.GetMedicionTrifasica();
+#endif
+//*************************** EXPERIMENTO **************************
+    
     switch (page)
     {
     case PANTALLA_VLN:
@@ -336,6 +340,7 @@ static void NextionUI_UpdateData(int page, PZEM_Trifasico Sensor)
     default:
         break;
     }
+
 }
 
 void NextionUI_initialize(AsyncWebServer &srv)

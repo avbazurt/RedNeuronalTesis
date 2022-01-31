@@ -22,8 +22,8 @@ Task task_yuboxMuestrearFases(TASK_SECOND * 1, TASK_FOREVER, &yuboxMuestrearFase
 void espnowMuestrearFases(void);
 Task task_espnowMuestrearFases(TASK_SECOND * 2, TASK_FOREVER, &espnowMuestrearFases, &mainScheduler);
 
-void TaskPredition();
-Task task_predition(2 * TASK_SECOND, TASK_FOREVER, &TaskPredition, &mainScheduler);
+void TaskControlReles();
+Task task_controlRele(2 * TASK_SECOND, TASK_FOREVER, &TaskControlReles, &mainScheduler);
 
 // Actualizar otra vez RTC cada 15 minutos
 void yuboxUpdateRTC(void);
@@ -43,6 +43,11 @@ bool enable_modo_auto;
 bool on_rele_A = false;
 bool on_rele_B = false;
 bool on_rele_C = false;
+
+bool HisteresisFaseA = false;
+bool HisteresisFaseB = false;
+bool HisteresisFaseC = false;
+
 
 float set_point_fp;
 
@@ -78,12 +83,30 @@ uint8_t MAC_servidor[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 void ReciveDataNow(char MAC[], char text[]);
 int histeresis(float valor, float tp);
 
+//*************************** EXPERIMENTO **************************
+#ifdef SIMULTATION_MATLAB
+String inputString = "";     // Cadena para guardar el comando recibido
+bool stringComplete = false; // Bandera boleana que nos indica cuando el comando fue recibido y podemos compararlo con los 2 comandos válidos
+
+void ReadDataMatlab();
+#endif
+//*******************************************************************
+
+
+
+
 void setup()
 {
+  // Inicializo HMI
   NextionUI_initialize(yubox_HTTPServer);
+
+  // Habilito puerto Serial a 115200
   Serial.begin(115200);
+
+  // Configuro los pines
   Wire.setPins(PIN_I2C_SDA, PIN_I2C_SCL);
 
+  // Obtendo de la memoria flash la informacion necesaria
   flashMemory.begin("model", false);
   set_point_fp = flashMemory.getFloat(addres_set_point, 0.95);
   enable_modo_auto = flashMemory.getBool(addres_enable_sp, false);
@@ -101,21 +124,26 @@ void setup()
   MAC_servidor[5] = flashMemory.getInt(addres_mac_6, 0);
   flashMemory.end();
 
-  Serial.println(enable_modo_auto);
-
+  // Inicio la hora desde el RTC
   iniciarHoraDesdeRTC();
+
+  // Inicio el RELE I2C y lo configuro
   releI2C = new PCA9536();
   releI2C->setup();
 
+  // Inicializo el sensor Trifasico
   sensor = new PZEM_Trifasico(PZEM_SERIAL, PZEM_RX_PIN, PZEM_TX_PIN,
                               PZEM_ADDRESS_FASE_A,
                               PZEM_ADDRESS_FASE_B,
                               PZEM_ADDRESS_FASE_C);
 
+  // Habilito el modo Simulacion;
   sensor->setModeSimulation();
 
+  // Inicio la RedNeuronal
   nn = new NeuralNetwork();
 
+  // Configuro la API YUBOX NODE
   yuboxAddManagedHandler(&eventosLector);
   yubox_HTTPServer.on("/yubox-api/contactores/tempoffset.json", HTTP_GET, routeHandler_yuboxAPI_calibration_tempoffset_GET);
   yubox_HTTPServer.on("/yubox-api/contactores/tempoffset.json", HTTP_POST, routeHandler_yuboxAPI_calibration_tempoffset_POST);
@@ -128,23 +156,45 @@ void setup()
 
   yuboxSimpleSetup();
 
+  // Sedo el control Wifi para ser utilizado por ESPNOW
   YuboxWiFi.releaseControlOfWiFi();
   YuboxWiFi.saveControlOfWiFi();
 
+<<<<<<< HEAD
+  // Inicio ESPNOW
+=======
+>>>>>>> ba2b02ceb29eafabfcd9355138b602e266bbe557
   now = new ESP32_now();
   now->setReciveCallback(ReciveDataNow);
   now->begin();
 
   // Actualización de RTC
   task_yuboxUpdateRTC.enable();
-  task_predition.enable();
   task_yuboxMuestrearFases.enable();
 
+  //********** EXPERIMENTO *************
+#ifdef SIMULTATION_MATLAB
+  log_i("Habilitando modo Matlab");
+  PZEM_SERIAL.end();
+  delay(500);
+  MATLAB_SERIAL.begin(115200, SERIAL_8N1, 18, 19);
+#else
+  task_controlRele.enable();
+#endif
+  //*************************************
+
+  // Verifico si existe tiempo de muestreo, caso contrario no se habilita la tarea
   if (second_muestreo > 0)
   {
     task_espnowMuestrearFases.setInterval(second_muestreo * TASK_SECOND);
     task_espnowMuestrearFases.enable();
   }
+
+
+
+
+
+
 }
 
 void loop()
@@ -152,7 +202,91 @@ void loop()
   yuboxSimpleLoopTask();
   NextionUI_runEvents(*sensor);
   mainScheduler.execute();
+  ReadDataMatlab();
 }
+
+//*************************** EXPERIMENTO **************************
+#ifdef SIMULTATION_MATLAB
+void ReadDataMatlab()
+{
+
+  if (MATLAB_SERIAL.available())
+  {
+    Serial.println("Llego algo");
+    String data = MATLAB_SERIAL.readStringUntil('\n');
+    Serial.println(data);
+    if (data == "rele")
+    {
+      TaskControlReles();
+    }
+    else
+    {
+      int indices[6];
+
+      indices[0] = data.indexOf(",");
+
+      for (int i = 1; i < 5; i++)
+      {
+        indices[i] = data.indexOf(",", indices[i - 1] + 1);
+        Serial.println(indices[i]);
+      }
+
+      int num = (data.substring(0, indices[0])).toInt();
+      float voltaje = (data.substring(indices[0] + 1, indices[1])).toFloat();
+      float corriente = (data.substring(indices[1] + 1, indices[2])).toFloat();
+      float potencia = (data.substring(indices[2] + 1, indices[3])).toFloat();
+      float fp = (data.substring(indices[3] + 1, indices[4])).toFloat();
+
+      switch (num)
+      {
+      case 1:
+        sensor->DatosFaseA.VLN = voltaje;
+        sensor->DatosFaseA.I = corriente;
+        sensor->DatosFaseA.FP = fp;
+
+        sensor->DatosFaseA.P = potencia;
+        sensor->DatosFaseA.Q = voltaje * corriente * sin(fp);
+        sensor->DatosFaseA.S = voltaje * corriente;
+        break;
+
+      case 2:
+        sensor->DatosFaseB.VLN = voltaje;
+        sensor->DatosFaseB.I = corriente;
+        sensor->DatosFaseB.FP = fp;
+
+        sensor->DatosFaseB.P = potencia;
+        sensor->DatosFaseB.Q = voltaje * corriente * sin(fp);
+        sensor->DatosFaseB.S = voltaje * corriente;
+        break;
+
+      case 3:
+        sensor->DatosFaseC.VLN = voltaje;
+        sensor->DatosFaseC.I = corriente;
+        sensor->DatosFaseC.FP = fp;
+
+        sensor->DatosFaseC.P = potencia;
+        sensor->DatosFaseC.Q = voltaje * corriente * sin(fp);
+        sensor->DatosFaseC.S = voltaje * corriente;
+        break;
+
+      default:
+        break;
+      }
+
+      sensor->TriFase.P3 = sensor->DatosFaseA.P + sensor->DatosFaseB.P + sensor->DatosFaseC.P;
+      sensor->TriFase.Q3 = sensor->DatosFaseA.Q + sensor->DatosFaseB.Q + sensor->DatosFaseC.Q;
+      sensor->TriFase.S3 = sensor->DatosFaseA.S + sensor->DatosFaseB.S + sensor->DatosFaseC.S;
+
+      if (sensor->TriFase.S3 > 0)
+      {
+        sensor->TriFase.fp3 = sensor->TriFase.P3 / sensor->TriFase.S3;
+      }
+    }
+  }
+}
+#endif
+
+//***************************************************************
 
 void espnowMuestrearFases(void)
 {
@@ -176,8 +310,10 @@ void espnowMuestrearFases(void)
 
 void yuboxMuestrearFases(void)
 {
-  sensor->GetMedicionTrifasica();
-  DynamicJsonDocument json_tablerow(JSON_OBJECT_SIZE(13) + 2 * JSON_OBJECT_SIZE(1));
+  // Experimento
+  // sensor->GetMedicionTrifasica();
+
+  DynamicJsonDocument json_tablerow(JSON_OBJECT_SIZE(15) + 2 * JSON_OBJECT_SIZE(1));
   // NOTA: se usa bucle para dejar listo para soporte de múltiple fases
   String json_tableOutput = "[";
   for (auto i = 0; i < 1; i++)
@@ -199,6 +335,8 @@ void yuboxMuestrearFases(void)
     json_tablerow["current_a"] = sensor->DatosFaseA.I;
     json_tablerow["current_b"] = sensor->DatosFaseB.I;
     json_tablerow["current_c"] = sensor->DatosFaseC.I;
+
+    json_tablerow["power_factor_tri"] = sensor->TriFase.fp3;
 
     json_tablerow["power_factor_a"] = sensor->DatosFaseA.FP;
     json_tablerow["power_factor_b"] = sensor->DatosFaseB.FP;
@@ -222,60 +360,136 @@ void yuboxMuestrearFases(void)
   }
 }
 
-void TaskPredition()
+void GeneratePredict()
 {
+  // Esta funcion se encarga de predecir utilizando tensor Model
+  struct tm timeinfo;
+  time_t ts_ahora;
 
-  if (enable_modo_auto)
-  {
-    struct tm timeinfo;
-    time_t ts_ahora;
+  // ¿Qué hora es? Se asume hora sistema correcta vía NTP
+  ts_ahora = time(NULL);
+  localtime_r(&ts_ahora, &timeinfo);
 
-    // ¿Qué hora es? Se asume hora sistema correcta vía NTP
-    ts_ahora = time(NULL);
-    localtime_r(&ts_ahora, &timeinfo);
-
-    // Calcular milisegundos desde la medianoche para la hora actual y para cada
-    // uno de los instantes de alimentación.
+  // Calcular milisegundos desde la medianoche para la hora actual y para cada
+  // uno de los instantes de alimentación.
 #define SEC_MEDIANOCHE(HH, MM, SS) ((SS + 60 * (MM + 60 * HH)))
 #define SEC_EN_DIA 86400000
 
-    uint32_t sec_ahora = SEC_MEDIANOCHE(timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+  uint32_t sec_ahora = SEC_MEDIANOCHE(timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
 
-    float seconds = sec_ahora;
+  float seconds = sec_ahora;
 
-    float day = timeinfo.tm_mday + 1;
-    float wekday = timeinfo.tm_wday + 1;
+  float day = timeinfo.tm_mday + 1;
+  float wekday = timeinfo.tm_wday + 1;
 
-    sensor->GetMedicionTrifasica();
+  nn->getInputBuffer()[0] = wekday;
+  nn->getInputBuffer()[1] = day;
+  nn->getInputBuffer()[2] = sec_ahora;
 
-    nn->getInputBuffer()[0] = wekday;
-    nn->getInputBuffer()[1] = day;
-    nn->getInputBuffer()[2] = sec_ahora;
+  nn->getInputBuffer()[3] = sensor->DatosFaseA.VLN;
+  nn->getInputBuffer()[4] = sensor->DatosFaseB.VLN;
+  nn->getInputBuffer()[5] = sensor->DatosFaseC.VLN;
 
-    nn->getInputBuffer()[3] = sensor->DatosFaseA.VLN;
-    nn->getInputBuffer()[4] = sensor->DatosFaseB.VLN;
-    nn->getInputBuffer()[5] = sensor->DatosFaseC.VLN;
+  nn->getInputBuffer()[6] = wekday;
+  nn->getInputBuffer()[7] = day;
+  nn->getInputBuffer()[8] = sec_ahora;
 
-    nn->getInputBuffer()[6] = wekday;
-    nn->getInputBuffer()[7] = day;
-    nn->getInputBuffer()[8] = sec_ahora;
+  nn->getInputBuffer()[9] = sensor->DatosFaseA.I;
+  nn->getInputBuffer()[10] = sensor->DatosFaseB.I;
+  nn->getInputBuffer()[11] = sensor->DatosFaseC.I;
 
-    nn->getInputBuffer()[9] = sensor->DatosFaseA.I;
-    nn->getInputBuffer()[10] = sensor->DatosFaseB.I;
-    nn->getInputBuffer()[11] = sensor->DatosFaseC.I;
+  float *result = nn->getOutputBuffer();
+  on_rele_A = result[0] >= set_point_fp;
+  on_rele_B = result[1] >= set_point_fp;
+  on_rele_C = result[2] >= set_point_fp;
+}
 
-    float *result = nn->getOutputBuffer();
-    on_rele_A = result[0] >= set_point_fp;
-    on_rele_B = result[1] >= set_point_fp;
-    on_rele_C = result[2] >= set_point_fp;
+bool ControlHisteresis(bool histeresis, float fp, float sp)
+{
+  bool rele;
+
+  if(fp>sp){
+    rele = false;
+  }
+  else{
+    rele = true;
   }
 
+  /*
+  if (histeresis)
+  {
+    if (fp > sp + 0.02)
+    {
+      rele = true;
+    }
+  }
+  else
+  {
+    if (fp < sp - 0.02)
+    {
+      rele = false;
+    }
+  }
+  */
+  return rele;
+}
+
+void TaskControlReles()
+{
+  if (enable_modo_auto)
+  {
+    //*************************** EXPERIMENTO **************************
+#ifndef SIMULTATION_MATLAB
+    sensor->GetMedicionTrifasica();
+#endif
+    //******************************************************************
+    on_rele_A = ControlHisteresis(HisteresisFaseA, sensor->DatosFaseA.FP, set_point_fp);
+    on_rele_B = ControlHisteresis(HisteresisFaseB, sensor->DatosFaseB.FP, set_point_fp);
+    on_rele_C = ControlHisteresis(HisteresisFaseC, sensor->DatosFaseC.FP, set_point_fp);
+    // GeneratePredict();
+  }
+//*************************** EXPERIMENTO **************************
+#ifdef SIMULTATION_MATLAB
+  char msg[20];
+  sprintf(msg, "%d|%d|%d", (int)(on_rele_A), (int)(on_rele_B), (int)(on_rele_C));
+  MATLAB_SERIAL.println(String(msg));
+#else
   int rele_faseA = 0b00000001 * ((int)(on_rele_A));
   int rele_faseB = 0b00000010 * ((int)(on_rele_B));
   int rele_faseC = 0b00000100 * ((int)(on_rele_C));
   int output_rele = rele_faseA | rele_faseB | rele_faseC;
-
   releI2C->output(output_rele);
+#endif
+  //***************************************************************
+}
+
+TaskHandle_t time_out;
+int i_actual;
+
+void TimeOutModel(void *pvParameters)
+{
+  (void)pvParameters;
+  int indice_anterior = -1;
+  for (;;)
+  {
+    if (i_actual == indice_anterior)
+    {
+      // Se acabo el tiempo de espera
+      log_i("Time Out flasheo modelo, se procede a reactivar las medicion y predicion");
+      task_controlRele.enable();
+      task_yuboxMuestrearFases.enable();
+
+      NextionUI_flah_model(0, 0, false, true);
+      vTaskDelay(500 / portTICK_PERIOD_MS);
+      vTaskDelete(time_out);
+    }
+    else
+    {
+      Serial.println("Todo OK");
+      indice_anterior = i_actual;
+    }
+    vTaskDelay(5000 / portTICK_PERIOD_MS);
+  }
 }
 
 TaskHandle_t time_out;
@@ -333,7 +547,7 @@ void ReciveDataNow(char MAC[], char text[])
     Serial.println(total_indice);
 
     nn->new_model_tflite = new char[total_indice];
-    task_predition.disable();
+    task_controlRele.disable();
     task_yuboxMuestrearFases.disable();
     NextionUI_flah_model(total_indice, true);
     nn->indice_new_model = 0;
@@ -408,15 +622,15 @@ void iniciarHoraDesdeRTC(void)
   rtc_valid = rtc.begin();
   if (!rtc_valid)
   {
-    Serial.println("no se dispone de RTC! Se continúa sin fecha hasta obtener NTP.");
+    log_i("no se dispone de RTC! Se continúa sin fecha hasta obtener NTP.");
   }
   else
   {
-    Serial.println("RTC DS3231 detectado correctamente...");
+    log_i("RTC DS3231 detectado correctamente...");
     // Para primera inicialización, se ajusta fecha y hora
     if (rtc.lostPower())
     {
-      Serial.println("RTC DS3231 perdió energía o primer arranque, se ajusta...");
+      log_i("RTC DS3231 perdió energía o primer arranque, se ajusta...");
       // TODO: warm reset puede haber preservado hora interna, debería aprovecharse
 
       // Fijar a fecha y hora de compilacion - SE ASUME HORA UTC POR AHORA
@@ -424,7 +638,7 @@ void iniciarHoraDesdeRTC(void)
     }
     else
     {
-      Serial.println("Iniciar hasta recibir NTP.");
+      log_i("Iniciar hasta recibir NTP.");
 
       // Indicar como valor de RTC lo que reporte el chip, hasta recibir NTP
       DateTime rtc_now = rtc.now();
@@ -437,7 +651,6 @@ void yuboxUpdateRTC(void)
 {
   if (!rtc_valid)
     return; // Sólo actualizar si se tiene RTC
-  Serial.println("Actualizar Hora");
   rtc.adjust(DateTime(time(NULL)));
 }
 
@@ -500,10 +713,6 @@ void routeHandler_yuboxAPI_calibration_tempoffset_POST(AsyncWebServerRequest *re
   }
 
   ASSIGN_FROM_POST(sp_fp, "%lf")
-
-  Serial.println(n_enabled);
-  Serial.println(n_sp_fp);
-
   if (n_sp_fp > 1)
   {
     serverError = true;
@@ -640,10 +849,6 @@ void routeHandler_yuboxAPI_contactores_releSet_POST(AsyncWebServerRequest *reque
     on_rele_A = n_releA;
     on_rele_B = n_releB;
     on_rele_C = n_releC;
-
-    Serial.println(n_releA);
-    Serial.println(n_releB);
-    Serial.println(n_releC);
   }
 
   if (!clientError && !serverError)
