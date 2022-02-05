@@ -72,17 +72,9 @@ for i = 1:4
     
 end
 
-csvwrite('TrainModel.csv', data);
+Tabla = array2table(data,'VariableNames',{'day','weekday','second_hora','VA','IA','FPA','VB','IB','FPB','VC','IC','FPC','FP3'})
+writetable(Tabla,'TrainModel.csv');
 
 
 
-%De 0- T1, la carga será RL1 (6am-2pm)
-%De T1- T2, la carga será RL2
-%De T2- T3, la carga será RL3
-%De T3- T4, la carga será RL4
-%De T4- T5, la carga será RL5 (0am-6am)
-
-%% 
-
-
-
+ 
