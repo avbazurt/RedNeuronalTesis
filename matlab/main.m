@@ -14,7 +14,7 @@ gain_time = 0.0001;
 ts_save = gain_time *10; 
 
 %Equivalente a 12Horas -> 6AM a 8PM
-horas_simular = 1;
+horas_simular = 0.5;
 
 total_sim =  (horas_simular*60*60)*gain_time
 
@@ -28,6 +28,8 @@ ts_read = 0.05
 ASCII_read = '%f|%f|%f\n'
 
 %% Datos Carga Trifasica
+
+data = []
 
 for i = 1:4
     %day
@@ -64,23 +66,15 @@ for i = 1:4
     sim('Planta_FTV_load_balanceada.slx')
     msg = 'Terminando Simulacion'
 
+    data = [data;dataSet]
     
-    figure()
-    plot(dataSet(1:end,3),dataSet(1:end,13))
-
-    
-    % Make connection to database
-    conn = database('RASPBERRY PI','avbazurt','');
-
-    Tabla = array2table(dataSet,'VariableNames',{'day','weekday','second_hora','VA','IA','FPA','VB','IB','FPB','VC','IC','FPC','FP3'})
-    sqlwrite(conn,'mediciones',Tabla)
-
-    % Close connection to database
-    close(conn)
-
     t = 'Terminado guardado'
     
 end
+
+csvwrite('TrainModel.csv', data);
+
+
 
 %De 0- T1, la carga será RL1 (6am-2pm)
 %De T1- T2, la carga será RL2
@@ -91,7 +85,4 @@ end
 %% 
 
 
-x = dataSet(1:end,1)
-y = dataSet(1:end,2)
 
-plot(x,y)
