@@ -1,0 +1,66 @@
+% Tesis Medidor Consumo Energetico - Mejorar Factor Potencia
+
+%Vidal Bazurto
+%Daniel Guznay
+
+%% Conversiones
+% 1 Segundo -> 0.001
+% 10 Segundos -> 0.01
+
+%Equivale a un segundo
+gain_time = 0.0001;
+
+%Equivale a 10 segundos
+ts_save = gain_time *10; 
+
+%Equivalente a 12Horas -> 6AM a 8PM
+horas_simular = 1;
+
+total_sim =  (horas_simular*60*60)*gain_time
+
+%% Iniciamos variables importantes
+
+%Variables de envio
+ts_send = 0.01
+ASCII_send = '%f,%f,%f,%f,%f,\n' 
+
+ts_read = 0.05
+ASCII_read = '%f|%f|%f\n'
+
+%% Datos Carga Trifasica
+%Seed Ruido Solar
+speed_solar = [round(rand()*100000)]
+
+%Luz solar 
+duty_solar = (4*rand())-(3*rand())+90
+
+%Datos de carga RL balanceada
+R=10;
+
+%Asumir que T=0 es las 6am
+time_hour = 60*60*gain_time;
+
+T1= 2 *time_hour + rand()*0.5; % 8am
+T2= 6 *time_hour + rand()*0.5; % 12pm
+T3= 11 *time_hour + rand()*0.5; % 5pm
+T4= 17 * time_hour + rand()*0.5; % 0am del día siguiente
+T5=18; % 6am del día siguiente
+L1=8.5e-03; %se activa de 0-T1
+L2=12e-03; %se activa de T1-T2
+L3=19e-03; %se activa de T2-T3
+L4=18e-03; %se activa de T3-T4
+L5=12e-03; %se activa de T4-T5
+
+%De 0- T1, la carga será RL1 (6am-2pm)
+%De T1- T2, la carga será RL2
+%De T2- T3, la carga será RL3
+%De T3- T4, la carga será RL4
+%De T4- T5, la carga será RL5 (0am-6am)
+
+%% 
+
+
+x = dataSet(1:end,1)
+y = dataSet(1:end,2)
+
+plot(x,y)
