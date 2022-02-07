@@ -1,19 +1,13 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
-import pandas
 import numpy as np
+
+from tensorflow import math as tf_math
+reduce_prod = tf_math.reduce_prod
+
 import tensorflow as tf
-from tensorflow.keras import layers
-from tensorflow.keras.utils import to_categorical
-from keras.utils import np_utils
+from tensorflow.keras.layers import Dense, LSTM, Dropout, Input, Lambda, Dense, concatenate, Flatten
+from scripts.SQL import ServidorMySQL
 
-from tensorflow.keras.models import load_model
-
-from sklearn.model_selection import train_test_split
-from sklearn.datasets import make_circles
-
-from keras import backend as K
-import matplotlib.pyplot as plt
-import re
 import hexdump
 
 class RedNeuronal:
@@ -26,46 +20,58 @@ class RedNeuronal:
         self.ouput_train = None
         self.ouput_test = None
 
+        self.timeSteps = 40
+        self.list_input = list(np.ones(self.timeSteps))
 
     def UpdateDatos(self):
-        kp = 1
-        n1 = np.arange(0, 220, kp)
-        n2 = np.arange(0, 220, kp)
-        n3 = np.arange(0, 220, kp)
-        n4 = np.arange(0, 220, kp)
-        n5 = np.arange(0, 220, kp)
-        n6 = np.arange(0, 220, kp)
-        n7 = np.arange(0, 220, kp)
-        n8 = np.arange(0, 220, kp)
+        dtb = ServidorMySQL("dataBase/medidorTrifasico.db")
+        select_dtb = dtb.SELECT("SELECT FP3 FROM mediciones")
 
-        X = np.transpose([n1, n2, n3, n4, n5, n6, n7, n8])
-        Y = np.random.randint(0, 2, size=[np.shape(X)[0], 3])
+        fp3_train = []
+        [fp3_train.append(x[0]) for x in select_dtb[1]]
 
-        input_train, input_test, ouput_train,ouput_test = train_test_split(X,Y,train_size=0.8,random_state=23)
 
-        self.input_train = np.array(input_train).tolist()
-        self.input_test = np.array(input_test).tolist()
-        self.ouput_train = np.array(ouput_train).tolist()
-        self.ouput_test = np.array(ouput_test).tolist()
+        num_train = round(len(fp3_train) * 0.70)
+
+        xTrain = []
+        yTrain = []
+
+        for i in range(0, num_train - self.timeSteps):
+            # Lista - [FP3-actual]
+            fp3 = fp3_train[i:i + self.timeSteps]
+
+            train = list(fp3)
+            xTrain.append(train)
+
+            yTrain.append(fp3_train[i + self.timeSteps])
+
+        xTrain = np.array(xTrain)
+        xTrain = np.reshape(xTrain, (xTrain.shape[0], xTrain.shape[1], 1))
+
+        self.input_train = np.array(xTrain).tolist()
+        self.ouput_train = np.array(yTrain).tolist()
+
 
 
     def ConfigurarModelo(self):
         self.model = tf.keras.Sequential()
 
-        self.model.add(layers.Dense(32, activation='sigmoid', input_dim=8))
-        self.model.add(layers.Dense(16, activation='relu'))
-        self.model.add(layers.Dense(8, activation='relu'))
-        self.model.add(layers.Dense(3, activation='sigmoid'))
+        """ capa 1 """
+        self.model.add(LSTM(units=50, input_shape=(self.timeSteps, 1)))
 
-        # Configulación del entrenamiento
-        self.model.compile(loss='mse', optimizer='adam', metrics=['accuracy'])
+        """ capa output """
+        self.model.add(Dense(units=1))
+
+        self.model.compile(optimizer='rmsprop', loss='mse',
+                         metrics=[tf.keras.metrics.Accuracy(name='accuracy', dtype=None)])  # mse = mean_squared_error
+
         self.model.summary()
 
 
     def EntrenamientoModelo(self,epochs):
         self.model.fit(self.input_train, self.ouput_train, epochs=epochs, batch_size=1, verbose=True)
-        loss, accuracy = self.model.evaluate(self.input_test, self.ouput_test, verbose=0)
-        print("Test accuracy : " + str(accuracy))
+        #loss, accuracy = self.model.evaluate(self.input_test, self.ouput_test, verbose=0)
+        #print("Test accuracy : " + str(accuracy))
 
 
     def GenerateLiteModel(self,optimize=False):
@@ -83,7 +89,13 @@ class RedNeuronal:
         return c_array.split(",")
 
 
-    def Predicion(self,list_entrada):
-        input_predic = np.array([list_entrada])
+    def Predicion(self,dato):
+        self.list_input.pop(0)
+        self.list_input.insert(self.timeSteps-1,dato)
 
-        return self.model.predict(input_predic)
+        print(self.list_input)
+
+        input_predic = np.array([self.list_input])
+        input_predic = np.reshape(input_predic, (input_predic.shape[0], input_predic.shape[1], 1))
+
+        return self.model.predict(input_predic)[0][0]
