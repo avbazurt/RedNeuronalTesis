@@ -48,7 +48,6 @@ bool HisteresisFaseA = false;
 bool HisteresisFaseB = false;
 bool HisteresisFaseC = false;
 
-
 float set_point_fp;
 
 bool status_muestreo;
@@ -91,9 +90,6 @@ bool stringComplete = false; // Bandera boleana que nos indica cuando el comando
 void ReadDataMatlab();
 #endif
 //*******************************************************************
-
-
-
 
 void setup()
 {
@@ -160,28 +156,22 @@ void setup()
   YuboxWiFi.releaseControlOfWiFi();
   YuboxWiFi.saveControlOfWiFi();
 
-<<<<<<< HEAD
-  // Inicio ESPNOW
-=======
->>>>>>> ba2b02ceb29eafabfcd9355138b602e266bbe557
   now = new ESP32_now();
   now->setReciveCallback(ReciveDataNow);
   now->begin();
 
   // Actualización de RTC
   task_yuboxUpdateRTC.enable();
-  task_yuboxMuestrearFases.enable();
 
   //********** EXPERIMENTO *************
 #ifdef SIMULTATION_MATLAB
-  log_i("Habilitando modo Matlab");
   PZEM_SERIAL.end();
   delay(500);
-  MATLAB_SERIAL.begin(115200, SERIAL_8N1, 18, 19);
+  log_i("Habilitando modo Matlab");
+  MATLAB_SERIAL.begin(115200, SERIAL_8N1, 19, 18);
 #else
   task_controlRele.enable();
-#endif
-  //*************************************
+  task_yuboxMuestrearFases.enable();
 
   // Verifico si existe tiempo de muestreo, caso contrario no se habilita la tarea
   if (second_muestreo > 0)
@@ -189,12 +179,11 @@ void setup()
     task_espnowMuestrearFases.setInterval(second_muestreo * TASK_SECOND);
     task_espnowMuestrearFases.enable();
   }
+#endif
+  //*************************************
 
-
-
-
-
-
+  log_i("Iniciando ciclo loop");
+  sensor->TriFase.fp3 = 1;
 }
 
 void loop()
@@ -202,7 +191,9 @@ void loop()
   yuboxSimpleLoopTask();
   NextionUI_runEvents(*sensor);
   mainScheduler.execute();
-  ReadDataMatlab();
+  #ifdef SIMULTATION_MATLAB
+    ReadDataMatlab();
+  #endif
 }
 
 //*************************** EXPERIMENTO **************************
@@ -217,7 +208,10 @@ void ReadDataMatlab()
     Serial.println(data);
     if (data == "rele")
     {
-      TaskControlReles();
+      // TaskControlReles();
+      char msg[20];
+      sprintf(msg, "%d|%d|%d", (int)(on_rele_A), (int)(on_rele_B), (int)(on_rele_C));
+      MATLAB_SERIAL.println(String(msg));
     }
     else
     {
@@ -273,14 +267,37 @@ void ReadDataMatlab()
         break;
       }
 
-      sensor->TriFase.P3 = sensor->DatosFaseA.P + sensor->DatosFaseB.P + sensor->DatosFaseC.P;
-      sensor->TriFase.Q3 = sensor->DatosFaseA.Q + sensor->DatosFaseB.Q + sensor->DatosFaseC.Q;
-      sensor->TriFase.S3 = sensor->DatosFaseA.S + sensor->DatosFaseB.S + sensor->DatosFaseC.S;
+      // Estamos Utilizando metodo de 2Watimetros
+      float magnitud_Vab = sensor->DatosFaseA.VLN;
+      float magnitud_Ia = sensor->DatosFaseA.I;
 
-      if (sensor->TriFase.S3 > 0)
+      float fasor_Vab = 0;
+      float fasor_Ia = -(sensor->acos(sensor->DatosFaseA.FP) * (180 / PI));
+
+
+      float magnitud_Vbc = sensor->DatosFaseB.VLN;
+      float magnitud_Ic = sensor->DatosFaseC.I;
+
+      float fasor_Vbc = -120;
+      float fasor_Ic = -((sensor->acos(sensor->DatosFaseC.FP) * (180 / PI))-120);
+
+      // Calculo las Potencias
+      float P1 = (magnitud_Vab / sqrt(2)) * (magnitud_Ia / sqrt(2)) * (cos((fasor_Vab - fasor_Ia) * (PI / 180)));
+      float P2 = (magnitud_Vbc / sqrt(2)) * (magnitud_Ic / sqrt(2)) * (cos((fasor_Vbc + 180 - fasor_Ic) * (PI / 180)));
+
+      sensor->TriFase.P3 = P1 + P2;
+
+      if (sensor->TriFase.P3 > 0)
       {
-        sensor->TriFase.fp3 = sensor->TriFase.P3 / sensor->TriFase.S3;
+        // Potencia Activa 3F
+        sensor->TriFase.Q3 = (P2 - P1) * sqrt(3);
+        sensor->TriFase.fp3 = cos(sensor->atan(sensor->TriFase.Q3 / sensor->TriFase.P3));
+        sensor->TriFase.S3 = sensor->TriFase.P3 / sensor->TriFase.fp3;
       }
+
+      // Actualizar Muestrear
+      yuboxMuestrearFases();
+      espnowMuestrearFases();
     }
   }
 }
@@ -290,7 +307,7 @@ void ReadDataMatlab()
 
 void espnowMuestrearFases(void)
 {
-  DynamicJsonDocument json_data(JSON_OBJECT_SIZE(13));
+  DynamicJsonDocument json_data(JSON_OBJECT_SIZE(14));
   json_data["cmd"] = "muestra";
   json_data["VA"] = sensor->DatosFaseA.VLN;
   json_data["VB"] = sensor->DatosFaseB.VLN;
@@ -301,6 +318,7 @@ void espnowMuestrearFases(void)
   json_data["FPA"] = sensor->DatosFaseA.FP;
   json_data["FPB"] = sensor->DatosFaseB.FP;
   json_data["FPC"] = sensor->DatosFaseC.FP;
+  json_data["FP3"] = sensor->TriFase.fp3;
 
   String json_output;
   serializeJson(json_data, json_output);
@@ -322,9 +340,9 @@ void yuboxMuestrearFases(void)
       json_tableOutput += ",";
 
     // Potencias y factor de potencia
-    json_tablerow["apparent_power"] = sensor->TriFase.P3;
-    json_tablerow["real_power"] = sensor->TriFase.Q3;
-    json_tablerow["reactive_power"] = sensor->TriFase.S3;
+    json_tablerow["real_power"] = sensor->TriFase.P3;
+    json_tablerow["reactive_power"] = sensor->TriFase.Q3;
+    json_tablerow["apparent_power"] = sensor->TriFase.S3;
 
     DynamicJsonDocument d(JSON_OBJECT_SIZE(1));
 
@@ -408,10 +426,12 @@ bool ControlHisteresis(bool histeresis, float fp, float sp)
 {
   bool rele;
 
-  if(fp>sp){
+  if (fp > sp)
+  {
     rele = false;
   }
-  else{
+  else
+  {
     rele = true;
   }
 
@@ -492,32 +512,36 @@ void TimeOutModel(void *pvParameters)
   }
 }
 
-TaskHandle_t time_out;
-int i_actual;
-
-void TimeOutModel(void *pvParameters)
+void ControlReleAutomatico(float fp3)
 {
-  (void)pvParameters;
-  int indice_anterior = -1;
-  for (;;)
+  if (fp3 < set_point_fp)
   {
-    if (i_actual == indice_anterior)
-    {
-      // Se acabo el tiempo de espera
-      log_i("Time Out flasheo modelo, se procede a reactivar las medicion y predicion");
-      task_predition.enable();
-      task_yuboxMuestrearFases.enable();
+    float delta_fp = set_point_fp - fp3;
 
-      NextionUI_flah_model(0, 0, false,true);
-      vTaskDelay(500 / portTICK_PERIOD_MS);
-      vTaskDelete(time_out);
-    }
-    else
+    if (delta_fp >= 0 and delta_fp < 0.1)
     {
-      Serial.println("Todo OK");
-      indice_anterior = i_actual;
+      on_rele_A = true;
+      on_rele_B = false;
+      on_rele_C = false;
     }
-    vTaskDelay(5000 / portTICK_PERIOD_MS);
+    else if (delta_fp >= 0.1 and delta_fp < 0.2)
+    {
+      on_rele_A = false;
+      on_rele_B = true;
+      on_rele_C = false;
+    }
+    else if (delta_fp >= 0.2)
+    {
+      on_rele_A = false;
+      on_rele_B = false;
+      on_rele_C = true;
+    }
+  }
+  else
+  {
+    on_rele_A = false;
+    on_rele_B = false;
+    on_rele_C = false;
   }
 }
 
@@ -537,7 +561,15 @@ void ReciveDataNow(char MAC[], char text[])
   }
 
   const char *opcion = doc["cmd"];
-  if (String(opcion) == "new_model")
+
+  if (String(opcion) == "predict")
+  {
+    float valor = doc["valor"];
+    Serial.println(valor);
+    ControlReleAutomatico(valor);
+  }
+
+  else if (String(opcion) == "new_model")
   {
     task_espnowMuestrearFases.disable();
 

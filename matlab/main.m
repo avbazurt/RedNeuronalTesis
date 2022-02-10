@@ -18,6 +18,7 @@ ts_save = gain_time *10;
 %Equivalente a 12Horas -> 6AM a 8PM
 horas_simular = 14;
 
+
 hora_inicio = 6*60*60*gain_time;
 ocultarSol = 12*60*60*gain_time; %5PM
 

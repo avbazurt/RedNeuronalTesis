@@ -13,6 +13,9 @@
       <a class="nav-link active" id="lector_power-tab" data-toggle="tab" href="#lector_power" role="tab" aria-controls="lector_power" aria-selected="true">Δ3Φ</a>
     </li>
     <li class="nav-item" role="presentation">
+        <a class="nav-link" id="lector_power_factor-tab" data-toggle="tab" href="#lector_power_factor_tri" role="tab" aria-controls="lector_power_factor_tri" aria-selected="false">F. Pot 3Φ.</a>
+      </li>
+    <li class="nav-item" role="presentation">
       <a class="nav-link" id="lector_power_factor-tab" data-toggle="tab" href="#lector_power_factor" role="tab" aria-controls="lector_power_factor" aria-selected="false">F. Pot.</a>
     </li>
     <li class="nav-item" role="presentation">
@@ -33,12 +36,29 @@
                     </div>
                 </div>
                 <div class="row row-cols-2 row-cols-md-6">
-                    <div class="col">P. aparente 3Φ:</div>
+                    <div class="col">P. Real 3Φ:</div>
                     <div class="col"><h3 style="display: inline;" id="real_power">0.00</h3> W</div>
-                    <div class="col">P. real 3Φ:</div>
-                    <div class="col"><h3 style="display: inline;" id="apparent_power">0.00</h3> VA</div>
-                    <div class="col">P. reactiva 3Φ:</div>
+                    <div class="col">P. Reactiva 3Φ:</div>
                     <div class="col"><h3 style="display: inline;" id="reactive_power">0.00</h3> VAR</div>
+                    <div class="col">P. Aparente 3Φ:</div>
+                    <div class="col"><h3 style="display: inline;" id="apparent_power">0.00</h3> VA</div>
+                </div>
+                
+            </div>
+        </div>
+    </div>
+    <div class="tab-pane fade" id="lector_power_factor_tri" role="tabpanel" aria-labelledby="lector_power_factor_tri-tab">
+        <div class="card" id="card_power_factor_tri">
+            <div class="card-header">Factor de potencia 3FP</div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col">
+                        <canvas id="canvas_power_factor_tri"></canvas>
+                    </div>
+                </div>
+                <div class="row row-cols-2 row-cols-md-6">
+                    <div class="col">Fase Potencia Trifasico:</div>
+                    <div class="col"><h3 style="display: inline;" id="power_factor_tri">0.00</h3></div>
                 </div>
             </div>
         </div>

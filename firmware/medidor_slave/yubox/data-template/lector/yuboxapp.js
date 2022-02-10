@@ -13,20 +13,34 @@ function setupEnergyGraphicsTab()
             canvas: 'canvas#canvas_power',
             datasets: [
                 {
-                    label:      'P3Φ. Aparente (W)',
+                    label:      'P3Φ. Real (W)',
                     borderColor:'rgb(255, 99, 132)',
                     yAxisID:    'y-axis-id',
                 },{
-                    label:      'P3Φ. Real (W)',
+                    label:      'P3Φ. Reactiva (VAR)',
                     borderColor:'rgb(54, 162, 235)',
                     yAxisID:    'y-axis-id',
                 },{
-                    label:      'P3Φ. Reactiva (VAR)',
+                    label:      'P3Φ. Aparente (VAR)',
                     borderColor:'rgb(162, 235, 54)',
                     yAxisID:    'y-axis-id',
                 }
             ]
         },
+
+
+        power_factor_tri: {
+            title:  'Factor de potencia Trifasico',
+            canvas: 'canvas#canvas_power_factor_tri',
+            datasets: [
+                {
+                    label:      'Factor Potencia Trifasico',
+                    borderColor:'rgb(128, 0, 255)',
+                    yAxisID:    'y-axis-id',
+                }
+            ]
+        },
+
         //LOS COLORES SIGUEN NORMATIVA NEC - 120 208V
         power_factor: {
             title:  'Factor de potencia',
@@ -165,13 +179,19 @@ function yuboxLector_actualizar(data)
         // Preparar y empujar muestra según la clave
         switch (k) {
         case 'power':
-            samp.push({x: d, y: data.phases[0].apparent_power});
             samp.push({x: d, y: data.phases[0].real_power});
             samp.push({x: d, y: data.phases[0].reactive_power});
-            lectorpane.find('h3#apparent_power').text(data.phases[0].apparent_power.toFixed(2));
+            samp.push({x: d, y: data.phases[0].apparent_power});
             lectorpane.find('h3#real_power').text(data.phases[0].real_power.toFixed(2));
             lectorpane.find('h3#reactive_power').text(data.phases[0].reactive_power.toFixed(2));
+            lectorpane.find('h3#apparent_power').text(data.phases[0].apparent_power.toFixed(2));
             break;
+
+        case 'power_factor_tri':
+            samp.push({x: d, y: data.phases[0].power_factor_tri});
+            lectorpane.find('h3#power_factor_tri').text(data.phases[0].power_factor_tri.toFixed(2));
+            break;
+
         case 'power_factor':
             samp.push({x: d, y: data.phases[0].power_factor_a});
             samp.push({x: d, y: data.phases[0].power_factor_b});
@@ -179,7 +199,6 @@ function yuboxLector_actualizar(data)
             lectorpane.find('h3#power_factor_a').text(data.phases[0].power_factor_a.toFixed(2));
             lectorpane.find('h3#power_factor_b').text(data.phases[0].power_factor_b.toFixed(2));
             lectorpane.find('h3#power_factor_c').text(data.phases[0].power_factor_c.toFixed(2));
-
             break;
         case 'voltage':
             samp.push({x: d, y: data.phases[0].voltage_a});
